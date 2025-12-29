@@ -45,7 +45,6 @@ library(readr)
 library(ggpubr)
 library(viridis)
 
-# 02. Project 1 -- Different HA (H1 and H5) from influenza --------------------------------------------------
 
 library(shazam)#Package for SHM and clonal analysis
 library(ggplot2)
@@ -161,7 +160,6 @@ for (prefix in sample_prefixes) {
   output_filename <- paste0(prefix, ".merge.bcr.tsv")
   output_filepath <- file.path(output_directory, output_filename)
   
-  # Save file using write_tsv()
   write_tsv(merged_df, output_filepath)
   
   print(paste("Successfully merged and saved to:", output_filepath))
@@ -172,12 +170,6 @@ print("--- All samples processed and saved. ---")
 list.files(path = output_directory, pattern = "\\.merge\\.bcr\\.tsv$")
 
 ###shm calculation for Heavy Chain------
-# --- Step 0: Load required libraries ---
-# : install.packages(c("alakazam", "shazam", "dplyr", "readr"))
-library(alakazam)
-library(shazam)
-library(dplyr)
-library(readr)
 
 # --- Step 1: Set working directory ---
 #  .merge.final.bcr.tsv 
@@ -230,14 +222,12 @@ for (file_path in bcr_files) {
   heavy_chains_db <- db %>% filter(locus == "IGH")
   
   if (nrow(heavy_chains_db) > 0) {
-    # **Calculate total mutation count (COUNT)**
     count_db <- observedMutations(heavy_chains_db, 
                                   sequenceColumn = "sequence_alignment", 
                                   germlineColumn = "germline_alignment_d_mask",
                                   regionDefinition=NULL,
                                   frequency = FALSE)
     
-    # **Calculate total mutation frequency (FREQUENCY)**
     freq_db <- observedMutations(heavy_chains_db, 
                                  sequenceColumn = "sequence_alignment", 
                                  germlineColumn = "germline_alignment_d_mask",
@@ -268,7 +258,6 @@ for (file_path in bcr_files) {
   # Replace ".tsv" with ".shm.tsv"
   output_filepath <- gsub("\\.tsv$", ".shm.tsv", file_path)
   
-  # Save file using write_tsv()
   write_tsv(db_with_mutations, output_filepath)
   
   cat('Successfully calculated mutations and saved to:', basename(output_filepath), '\n')
@@ -343,9 +332,7 @@ calculate_shm_for_light_chain <- function(sample_data, sample_name, output_dir) 
   if (nrow(db) > 0) {
     message("Found ", nrow(db), " light chain sequences for calculation")
     
-    # ---  (SHM) ---
     
-    # Calculate total mutation count (COUNT)
     message("  Calculating mutation counts (COUNT)...")
     count_db <- observedMutations(db, 
                                   sequenceColumn = "sequence_alignment", 
@@ -354,7 +341,6 @@ calculate_shm_for_light_chain <- function(sample_data, sample_name, output_dir) 
                                   frequency = FALSE,
                                   nproc = 1)
     
-    # Calculate total mutation frequency (FREQUENCY)
     message("  Calculating mutation frequencies (FREQUENCY)...")
     freq_db <- observedMutations(db, 
                                  sequenceColumn = "sequence_alignment", 
@@ -427,8 +413,6 @@ flu_H5_mouse.bcr <- read.delim("./cell_reports/VDJ/annotation_results/fluH5_mous
  process_and_format_bcr <- function(raw_bcr_df) {
   
   # --- Step 1: Initial global QC ---
-  # as.character()
-  # (factor)("true", "True")
   clean_bcr <- raw_bcr_df %>%
     filter(toupper(as.character(productive)) == "T", 
            toupper(as.character(high_confidence)) == "TRUE",
@@ -440,14 +424,12 @@ flu_H5_mouse.bcr <- read.delim("./cell_reports/VDJ/annotation_results/fluH5_mous
     return(tibble()) # tibble
   }
   
-  # --- Step 2: Clean heavy chains (IGH) ---
   heavy_chains_clean <- clean_bcr %>%
     filter(chain == "IGH") %>%
     group_by(barcode) %>%
     slice_max(order_by = umis, n = 1, with_ties = FALSE) %>%
     ungroup()
   
-  # --- Step 3: Clean light chains (IGK & IGL) ---
   light_chains_clean <- clean_bcr %>%
     filter(chain %in% c("IGK", "IGL")) %>%
     group_by(barcode) %>%
@@ -458,23 +440,12 @@ flu_H5_mouse.bcr <- read.delim("./cell_reports/VDJ/annotation_results/fluH5_mous
   
   return(final_bcr_table)
 }
-# flu_H5.bcr.clean <- process_and_format_bcr(flu_H5.bcr)
-# print(flu_H5.bcr.clean)
-
-#add bcr to rna
-# head(colnames(flu_H5_mouse.obj))
-# [1] "AAACCAAAGAACACCC-1" "AAACCAAAGATTACGT-1" "AAACCAAAGCGAAGCA-1" "AAACCAAAGCTCGAGT-1"
-# [5] "AAACCAAAGCTGACGT-1" "AAACCAAAGGCATCGT-1"
-# head(flu_H5.bcr.clean$barcode)
-# [1] "AAACCAAAGAACACCC-1" "AAACCAAAGCTCGAGT-1" "AAACCAAAGCTGACGT-1" "AAACCAAAGGGCATAG-1"
-# [5] "AAACCAGCAACGTGGG-1" "AAACCAGCACCCTTTA-1"
 
 add_bcr_to_seurat <- function(seurat_obj, cleaned_bcr_df) {
   
   # 1. Get current Seurat metadata
   seurat_metadata <- seurat_obj@meta.data
   
-  # 2. Convert Seurat metadata rownames (barcode) to a column
   seurat_metadata$barcode_seurat <- rownames(seurat_metadata)
   
   # 3. Process BCR data: remove "_contig_X" suffix from sequence_id and rename to barcode
@@ -486,7 +457,6 @@ add_bcr_to_seurat <- function(seurat_obj, cleaned_bcr_df) {
   # 5. Merge using left_join
   merged_metadata <- left_join(seurat_metadata, cleaned_bcr_df, by = c("barcode_seurat" = "barcode"))
   
-  # 6. Check for NAs (unmatched barcodes) and warn
   if (sum(is.na(merged_metadata$barcode_seurat)) > 0) {
     warning(paste(sum(is.na(merged_metadata$barcode_seurat)), "cells in Seurat object did not match any BCR data."))
   }
@@ -514,7 +484,6 @@ flu_H5_mouse.obj_bcr <- NormalizeData(flu_H5_mouse.obj_bcr)
 flu_H5_mouse.obj_bcr <- FindVariableFeatures(flu_H5_mouse.obj_bcr, selection.method = "vst", nfeatures = 2000)
 
 # save rds
-#dir.create("./processed_seurat_objects")
 saveRDS(flu_H5_mouse.obj_bcr, file = "./processed_seurat_objects/flu_H5_mouse.obj_bcr.processed.rds")
 
 ### flu_H1_mouse1 --------------------------------------------------------
@@ -530,7 +499,6 @@ flu_H1_mouse1.obj <- subset(flu_H1_mouse1.obj, subset = nFeature_RNA > 200 & nFe
 #reading BCR and filtering
 flu_H1_mouse1.bcr <- read.delim("./cell_reports/VDJ/annotation_results/fluH1_mouse1.merge.final.bcr.shm.tsv",, sep = "\t", row.names = NULL, fileEncoding = "UTF-8")
 
-#flu_H1_mouse1.bcr.clean <- process_and_format_bcr(flu_H1_mouse1.bcr)
 
 #add bcr to rna
 flu_H1_mouse1.obj_bcr <- add_bcr_to_seurat(flu_H1_mouse1.obj, flu_H1_mouse1.bcr)
@@ -555,7 +523,6 @@ flu_H1_mouse2.obj <- subset(flu_H1_mouse2.obj, subset = nFeature_RNA > 200 & nFe
 # reading BCR and filtering 
 flu_H1_mouse2.bcr <- read.delim("./cell_reports/VDJ/annotation_results/fluH1_mouse2.merge.final.bcr.shm.tsv", sep = "\t", row.names = NULL, fileEncoding = "UTF-8")
 
-#flu_H1_mouse2.bcr.clean <- process_and_format_bcr(flu_H1_mouse2.bcr)
 
 #add bcr to rna
 flu_H1_mouse2.obj_bcr <- add_bcr_to_seurat(flu_H1_mouse2.obj, flu_H1_mouse2.bcr)
@@ -579,7 +546,6 @@ naive_mouse1.obj <- subset(naive_mouse1.obj, subset = nFeature_RNA > 200 & nFeat
 # reading BCR and filtering 
 naive_mouse1.bcr <- read.delim("./cell_reports/VDJ/annotation_results/naive_mouse1.merge.final.bcr.shm.tsv", sep = "\t", row.names = NULL, fileEncoding = "UTF-8")
 
-#naive_mouse1.bcr.clean <- process_and_format_bcr(naive_mouse1.bcr)
 
 #add bcr to rna
 naive_mouse1.obj_bcr <- add_bcr_to_seurat(naive_mouse1.obj, naive_mouse1.bcr)
@@ -604,7 +570,6 @@ naive_mouse2.obj <- subset(naive_mouse2.obj, subset = nFeature_RNA > 200 & nFeat
 # reading BCR and filtering 
 naive_mouse2.bcr <- read.delim("./cell_reports/VDJ/annotation_results/naive_mouse2.merge.final.bcr.shm.tsv", sep = "\t", row.names = NULL, fileEncoding = "UTF-8")
 
-#naive_mouse2.bcr.clean <- process_and_format_bcr(naive_mouse2.bcr)
 
 # add bcr to rna
 naive_mouse2.obj_bcr <- add_bcr_to_seurat(naive_mouse2.obj, naive_mouse2.bcr)
@@ -616,202 +581,8 @@ naive_mouse2.obj_bcr <- FindVariableFeatures(naive_mouse2.obj_bcr, selection.met
 # save rds
 saveRDS(naive_mouse2.obj_bcr, file = "./processed_seurat_objects/naive_mouse2.obj_bcr.processed.rds")
 
-# naive_mouse1.obj <- NormalizeData(naive_mouse1.obj)
-# naive_mouse1.obj <- FindVariableFeatures(naive_mouse1.obj, selection.method = "vst", nfeatures = 2000)
-# saveRDS(naive_mouse1.obj, file = "./processed_seurat_objects/test/naive_mouse1.obj.rds")
-# 
-# naive_mouse2.obj <- NormalizeData(naive_mouse2.obj)
-# naive_mouse2.obj <- FindVariableFeatures(naive_mouse2.obj, selection.method = "vst", nfeatures = 2000)
-# saveRDS(naive_mouse2.obj, file = "./processed_seurat_objects/test/naive_mouse2.obj.rds")
-# 
-# flu_H1_mouse1.obj <- NormalizeData(flu_H1_mouse1.obj)
-# flu_H1_mouse1.obj <- FindVariableFeatures(flu_H1_mouse1.obj, selection.method = "vst", nfeatures = 2000)
-# saveRDS(flu_H1_mouse1.obj, file = "./processed_seurat_objects/test/flu_H1_mouse1.obj.rds")
-# 
-# flu_H1_mouse2.obj_bcr <- NormalizeData(flu_H1_mouse2.obj_bcr)
-# flu_H1_mouse2.obj_bcr <- FindVariableFeatures(flu_H1_mouse2.obj_bcr, selection.method = "vst", nfeatures = 2000)
-# saveRDS(flu_H1_mouse2.obj, file = "./processed_seurat_objects/test/flu_H1_mouse2.obj.rds")
-# 
-# flu_H5_mouse.obj <- NormalizeData(flu_H5_mouse.obj)
-# flu_H5_mouse.obj <- FindVariableFeatures(flu_H5_mouse.obj, selection.method = "vst", nfeatures = 2000)
-# saveRDS(flu_H5_mouse.obj, file = "./processed_seurat_objects/test/flu_H5_mouse.obj.rds")
 
-## 02.2 Quality control, QC ------------------------------------------------
-
-### load and merge seurat ------------------------------------------------------------
-# flu_mouse_object.list <- merge(flu_H1_mouse2.obj_bcr, y = c(flu_H1_mouse1.obj.bcr, flu_H5_mouse.obj_bcr,
-#                                                        naive_mouse1.obj_bcr, naive_mouse2.obj_bcr))
-processed_dir <- "./processed_seurat_objects/"
-flu_mouse_files <- list.files(path = processed_dir, pattern = "\\.rds$", full.names = TRUE)
-flu_mouse_object.list <- lapply(flu_mouse_files, readRDS)
-names(flu_mouse_object.list) <- gsub("\\.rds$", "", basename(flu_mouse_files))
-
-### Integrate  ----------------------------------------------------
-
-flu_mouse_object.list <- mapply(
-  function(obj, nm) RenameCells(obj, add.cell.id = nm),
-  flu_mouse_object.list, names(flu_mouse_object.list),
-  SIMPLIFY = FALSE
-)
-
-#SCTransform
-for (i in 1:length(flu_mouse_object.list)) {
-  flu_mouse_object.list[[i]][["percent.mt"]] <- PercentageFeatureSet(flu_mouse_object.list[[i]], pattern = "^mt-")
-  flu_mouse_object.list[[i]] <- SCTransform(flu_mouse_object.list[[i]], 
-                                            verbose = TRUE,
-                                            vars.to.regress = c("percent.mt"))
-}
-
-#FindIntegrationAnchors
-features <- SelectIntegrationFeatures(object.list = flu_mouse_object.list, nfeatures = 3000)
-features <- setdiff(features, grep("(?i)^(ighm|ighg|igha|ighe|ighd)$", features, value = TRUE))
-
-#PrepSCTIntegration
-flu_mouse_object.list <- PrepSCTIntegration(object.list = flu_mouse_object.list, 
-                                            anchor.features = features)
-
-# ★ Perform PCA on each object (for rpca anchors)
-flu_mouse_object.list <- lapply(flu_mouse_object.list, function(x) {
-  DefaultAssay(x) <- "SCT"
-  RunPCA(x, features = features, npcs = 50, verbose = FALSE)
-})
-
-#reference index
-ref.samples <- c("flu_H1_mouse1.obj_bcr.processed","flu_H1_mouse2.obj_bcr.processed","naive_mouse1.obj_bcr.processed","naive_mouse2.obj_bcr.processed")
-ref.idx <- which(names(flu_mouse_object.list) %in% ref.samples)
-
-#
-flu_mouse.anchors <- FindIntegrationAnchors(
-  object.list = flu_mouse_object.list,
-  normalization.method = "SCT",
-  anchor.features = features,
-  reduction = "rpca",
-  dims = 1:30,
-  k.anchor = 10,
-  k.score = 30
-)
-
-#
-flu_mouse.integrated <- IntegrateData(
-  anchorset = flu_mouse.anchors,
-  normalization.method = "SCT",
-  dims = 1:30,
-  k.weight = 60
-)
-
-### interation before and after view ----------------------------------------------
-
-merged.obj <- merge(flu_mouse_object.list[[1]], y = flu_mouse_object.list[2:5])
-DefaultAssay(merged.obj) <- "RNA"
-merged.obj <- NormalizeData(merged.obj)
-merged.obj <- FindVariableFeatures(merged.obj,selection.method = "vst",nfeatures = 3000)
-merged.obj <- ScaleData(merged.obj, vars.to.regress = "percent.mt")
-merged.obj <- RunPCA(merged.obj, npcs = 50, verbose = FALSE)
-merged.obj <- FindNeighbors(merged.obj, dims = 1:30)
-merged.obj <- RunUMAP(merged.obj, dims = 1:30)
-
-merged.obj <- FindClusters(merged.obj, resolution = 0.6)
-plotS0a <- DimPlot(merged.obj, group.by = "orig.ident") + 
-  ggtitle("Before integration")+
-  theme(
-    legend.title = element_text(family = "Arial", size = 18), 
-    legend.text = element_text(family = "Arial", size = 18),              
-    plot.title = element_text(family = "Arial", size = 20, face = "bold", hjust = 0.5), 
-    axis.title = element_text(family = "Arial", size = 15), 
-    axis.text = element_text(family = "Arial", size = 15)   
-  )
-plotS0d <- DimPlot(merged.obj, group.by = "orig.ident", split.by = "orig.ident") + 
-  ggtitle("Before integration")+
-  theme(
-    legend.title = element_text(family = "Arial", size = 18), 
-    legend.text = element_text(family = "Arial", size = 18),              
-    plot.title = element_text(family = "Arial", size = 20, face = "bold", hjust = 0.5), 
-    axis.title = element_text(family = "Arial", size = 15), 
-    axis.text = element_text(family = "Arial", size = 15)   
-  )
-
-DefaultAssay(flu_mouse.integrated) <- "integrated"
-flu_mouse.integrated <- RunPCA(flu_mouse.integrated, npcs = 50, verbose = FALSE)
-flu_mouse.integrated <- FindNeighbors(flu_mouse.integrated, dims = 1:30)
-flu_mouse.integrated <- RunUMAP(flu_mouse.integrated, dims = 1:30)
-flu_mouse.integrated <- FindClusters(flu_mouse.integrated, resolution = 0.6)
-DimPlot(flu_mouse.integrated, group.by = "orig.ident") + ggtitle("After integration")
-plotS0b <- DimPlot(flu_mouse.integrated, group.by = "orig.ident") + 
-  ggtitle("After integration")+
-  theme(
-    legend.title = element_text(family = "Arial", size = 18), 
-    legend.text = element_text(family = "Arial", size = 18),              
-    plot.title = element_text(family = "Arial", size = 20, face = "bold", hjust = 0.5), 
-    axis.title = element_text(family = "Arial", size = 15), 
-    axis.text = element_text(family = "Arial", size = 15)   
-  )
-
-plotS0c <- DimPlot(flu_mouse.integrated, group.by = "orig.ident", split.by = "orig.ident")+ 
-  ggtitle("After integration")+
-  theme(
-    legend.title = element_text(family = "Arial", size = 18), 
-    legend.text = element_text(family = "Arial", size = 18),              
-    plot.title = element_text(family = "Arial", size = 20, face = "bold", hjust = 0.5), 
-    axis.title = element_text(family = "Arial", size = 15), 
-    axis.text = element_text(family = "Arial", size = 15)   
-  )
-
-plotS0 <- (plotS0a + plotS0b) /plotS0d/plotS0c
-print(plotS0)
-ggsave("./results/FigureS0.pdf", plot = plotS0, width = 12, height = 12)
-ggsave("./results/FigureS0.png", plot = plotS0, width = 12, height = 12)
-
-### Dimensionality reduction & clustering  ----------------------------------------------------
-
-####Reduction ----------------------------------------------------
-DefaultAssay(flu_mouse.integrated) <- "integrated"
-flu_mouse.combined <- RunPCA(flu_mouse.integrated, verbose = FALSE)
-plotS1a<- ElbowPlot(flu_mouse.combined, ndims=50, reduction="pca") 
-plotS1b<- DimPlot(flu_mouse.combined, reduction = "pca", group.by="orig.ident")
-plotS1 <- plotS1a+plotS1b
-print(plotS1)
-ggsave("./results/FigureS1.pdf", plot = plotS1, width = 12, height = 6)
-ggsave("./results/FigureS1.png", plot = plotS1, width = 12, height = 6)
-
-#clustree
-flu_mouse.combined <- FindNeighbors(flu_mouse.combined, dims = 1:40)
-flu_mouse.combined <- FindClusters(flu_mouse.combined, resolution = c(0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2))
-plotS2 <- clustree(flu_mouse.combined)
-print(plotS2)
-ggsave("./results/FigureS2.pdf", plot = plotS2, width = 18, height = 9)
-ggsave("./results/FigureS2.png", plot = plotS2, width = 18, height = 9)
-
-#Dimplot
-plotS3a <- DimPlot(flu_mouse.combined, group.by = "integrated_snn_res.0.4", label = TRUE) + ggtitle("Resolution 0.4")
-plotS3b <- DimPlot(flu_mouse.combined, group.by = "integrated_snn_res.0.6", label = TRUE) + ggtitle("Resolution 0.6")
-plotS3c <- DimPlot(flu_mouse.combined, group.by = "integrated_snn_res.0.8", label = TRUE) + ggtitle("Resolution 0.8")
-plotS3 <- plotS3a + plotS3b + plotS3c
-print(plotS3)
-ggsave("./results/FigureS3.pdf", plot = plotS3, width = 18, height = 6)
-ggsave("./results/FigureS3.png", plot = plotS3, width = 18, height = 6)
-
-####Cluster ----------------------------------------------------
-flu_mouse.combined <- FindNeighbors(flu_mouse.combined, dims = 1:40)
-flu_mouse.combined <- FindClusters(flu_mouse.combined, resolution = 0.8) 
-flu_mouse.combined <- RunUMAP(flu_mouse.combined, dims = 1:40)
-plotS4a <- DimPlot(flu_mouse.combined, reduction = "umap", label = TRUE)
-plotS4b <- DimPlot(flu_mouse.combined, reduction = "umap", group.by='orig.ident',cols = c("#5471ab","#5471ab","#72ab77","#d1895d","#d1895d"))
-plotS4 <- plotS4a+plotS4b
-print(plotS4)
-ggsave("./results/FigureS4.pdf", plot = plotS4, width = 18, height = 9)
-ggsave("./results/FigureS4.png", plot = plotS4, width = 18, height = 9)
-
-table(flu_mouse.combined@meta.data$seurat_clusters)
-metadata <- flu_mouse.combined@meta.data
-ncol(flu_mouse.combined)#[1] 28707
-flu_mouse_cell_cluster <- data.frame(cell_ID=rownames(metadata), cluster_ID=metadata$seurat_clusters)
-write.csv(flu_mouse_cell_cluster,'./results/TableS1.csv',row.names = F)
-
-## 02.3 Results ------------------------------------------------
-
-### Figure 1: ------------------------------------------------
-# Antigenic challenge with H5 and H1 influenza hemagglutinins dramatically reshapes the B cell transcriptional landscape
-#### FigureS5------------------------------------------------
+## 02 Results ------------------------------------------------
 ####Figure
 features_B<- c("Cd19","Cd79a","Ebf1","Iglc3","Fcer2a")
 features_T<- c("Cd3e", "Cd3g")
@@ -819,31 +590,16 @@ features_Macrophage<- c("C1qa", "Cd68","Trf")
 features_Monocyte<- c("Fn1","Ace")
 features_Neutrophil<- c("S100a9","S100a8","Retnlg")
 features_NKC<- c("Ncr1","Klrk1")
-#features_Dendriticcell<- c("Ccl22","Il4i1")
 feature_Erythroid <-c("Hba-a1", "Hba-a2","Hbq1b")
 features_Granulocyte <- c("Ccl4","Csf1")
 genes_alls = c(features_B, features_T, features_Macrophage, features_Neutrophil, features_NKC,
                feature_Erythroid,features_Granulocyte)
-plotS5d1 <- DotPlot(flu_mouse.combined, features = genes_alls, assay = "RNA")+
+plot1 <- DotPlot(flu_mouse.combined, features = genes_alls, assay = "RNA")+
           theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5))
-print(plotS5d1)
-ggsave("./results/FigureS5d1.pdf", plot = plotS5d, width = 18, height = 9)
-ggsave("./results/FigureS5d1.png", plot = plotS5d, width = 18, height = 9)
+print(plot1)
 #clustercluster
-#cluster13
-#cluster13_markers <- FindMarkers(flu_mouse.combined, ident.1 = 13)
-#head(cluster13_markers)
-#cluster13_up_markers <- subset(cluster13_markers, avg_log2FC > 0 & p_val_adj < 0.05)
 
-# B_cell:1,2,3,4,5,6,10,11,12,13,14,16,17,18,21,26,28,29,30,32,33,34,36;
-# T_cell:24,25;
-# Macrophage:19,20,23,27;
-# Neutrophil:15;
-# NKC:7;
-# Erythroid:35,37;
-# Granulocyte:0,8,9,22,31
-
-#####FigureS5a umap -----
+#####umap -----
 flu_mouse.combined@meta.data$spleen_cell_subpopulations <- plyr::mapvalues(from = c (1,2,3,4,5,6,10,11,12,13,14,16,17,18,21,26,28,29,30,32,33,34,36,
                                                                                      24,25,
                                                                                      19,20,23,27,
@@ -862,7 +618,7 @@ flu_mouse.combined@meta.data$spleen_cell_subpopulations <- plyr::mapvalues(from 
 
 #scRNAi_QC@meta.data
 flu_mouse.annotated_clusters <- flu_mouse.combined@meta.data
-write.csv(flu_mouse.annotated_clusters,'./results/TableS2.csv',row.names = T)
+write.csv(flu_mouse.annotated_clusters,'./results/Table2.csv',row.names = T)
 
 umap_data <- data.frame(
   UMAP_1 = flu_mouse.combined@reductions$umap@cell.embeddings[, 1],
@@ -882,7 +638,7 @@ axis_origin_x <- min(umap_data$UMAP_1) - 1
 axis_origin_y <- min(umap_data$UMAP_2) - 1
 arrow_length <- 4 
 
-plotS5a <- ggplot() +
+plot2 <- ggplot() +
   geom_point(data = umap_data, aes(x = UMAP_1, y = UMAP_2, color = cell_type), size = 1) +
   geom_label_repel(
     data = cell_type_medians, 
@@ -912,11 +668,9 @@ plotS5a <- ggplot() +
   theme(
     legend.position = "none",
     plot.background = element_rect(fill = "white", color = NA)  )
-print(plotS5a)
-ggsave("./results/FigureS5a.pdf", plot = plotS5a, width = 9, height = 9)
-ggsave("./results/FigureS5a.png", plot = plotS5a, width = 9, height = 9, dpi = 300)
+print(plot2)
 
-#####FigureS5b cell counts------
+#####cell counts------
 table(flu_mouse.combined$orig.ident)
 table(flu_mouse.combined@meta.data$spleen_cell_subpopulations)
 meta_df <- flu_mouse.combined@meta.data
@@ -934,7 +688,7 @@ cell_type_colors <- c(
    "Neutrophil" = "#ff8c00", 
    "Macrophage" = "#875b51", 
    "Erythroid" = "#d57dbe")
-plotS5b <- ggplot(plot_data, aes(x = orig.ident, y = n, fill = spleen_cell_subpopulations)) +
+plot3 <- ggplot(plot_data, aes(x = orig.ident, y = n, fill = spleen_cell_subpopulations)) +
   geom_col(position = "fill") +
   geom_text(
     data = total_counts_data,
@@ -967,11 +721,8 @@ plotS5b <- ggplot(plot_data, aes(x = orig.ident, y = n, fill = spleen_cell_subpo
     legend.text = element_text(size = 18)
   )
 
-print(plotS5b)
-ggsave("./results/FigureS5b.pdf", plot = plotS5b, width = 9, height = 6)
-ggsave("./results/FigureS5b.png", plot = plotS5b, width = 9, height = 6, dpi = 300)
+print(plot3)
 
-# B
 b_cell_seurat_object <- subset(
   flu_mouse.combined, 
   idents = c(1,2,3,4,5,6,10,11,12,13,14,16,17,18,21,26,28,29,30,32,33,34,36)
@@ -979,7 +730,7 @@ b_cell_seurat_object <- subset(
 b_cell_counts_from_subset <- table(b_cell_seurat_object$orig.ident)
 print(b_cell_counts_from_subset)
 
-#####FigureS5c heatmap ------
+#####heatmap ------
 table(Idents(flu_mouse.combined))
 flu_mouse.combined <- RenameIdents(object = flu_mouse.combined,
                                  "1" = "B Cell",
@@ -1049,7 +800,7 @@ grp_cols <- c(
 grp_cols <- grp_cols[levels(Idents(flu_mouse.combined))]
 genes_use <- intersect(top8_c$gene, rownames(flu_mouse.combined))
 # 2)  gradientn color_manual  drop=FALSE
-plotS5c <- DoHeatmap(
+plot4 <- DoHeatmap(
   object       = flu_mouse.combined,
   features     = genes_use,
   size         = 5,
@@ -1072,13 +823,11 @@ plotS5c <- DoHeatmap(
     legend.text      = element_text(family = "Arial", size = 18),
     legend.key.height = unit(0.8, "cm")
   )
-print(plotS5c)
-ggsave(filename="./results/FigureS5c.pdf", plot = plotS5c, width = 9, height = 18)
-ggsave(filename="./results/FigureS5c.png", plot = plotS5c, width = 9, height = 18)
+print(plot4)
 
-#####FigureS5d Dotplot------
+#####Dotplot------
 
-plotS5d <- DotPlot(flu_mouse.combined, features = genes_alls) +
+plot5 <- DotPlot(flu_mouse.combined, features = genes_alls) +
   theme(
     axis.text.x = element_text(family = "Arial", angle = 45, vjust = 0.5, hjust = 0.5, size = 20),
     axis.text.y = element_text(family = "Arial", size = 20),
@@ -1100,11 +849,9 @@ plotS5d <- DotPlot(flu_mouse.combined, features = genes_alls) +
       label.theme = element_text(family = "Arial", size = 20)
     )
   )
-print(plotS5d)
-ggsave("./results/FigureS5d.pdf", plot = plotS5d, width = 18, height = 6)
-ggsave("./results/FigureS5d.png", plot = plotS5d, width = 18, height = 6)
+print(plot5)
 
-####FigureS6 umap for 5 samples------
+####umap for 5 samples------
 umap_data <- data.frame(
   UMAP_1 = flu_mouse.combined@reductions$umap@cell.embeddings[, 1],
   UMAP_2 = flu_mouse.combined@reductions$umap@cell.embeddings[, 2],
@@ -1139,7 +886,7 @@ for (sample_id in sample_list) {
   plot_list[[sample_id]] <- p_sample
 }
 if (length(plot_list) == 5) {
-  plotS6 <- wrap_plots(plot_list, ncol = 3) +
+  plot6 <- wrap_plot(plot_list, ncol = 3) +
     plot_layout(guides = 'collect') 
     plot_annotation( 
       title = 'UMAP Projections per Sample',
@@ -1147,18 +894,16 @@ if (length(plot_list) == 5) {
     )
   
 } else {
-  plotS6 <- wrap_plots(plot_list, ncol = 3)
+  plot5 <- wrap_plot(plot_list, ncol = 3)
     plot_layout(guides = 'collect') +
     plot_annotation(
       title = 'UMAP Projections per Sample',
       theme = theme(plot.title = element_text(size = 20, face = 'bold', hjust = 0.5))
     )
 }
-print(plotS6)
-ggsave("./results/FigureS6.pdf", plot = plotS6, width = 18, height = 12)
-ggsave("./results/FigureS6.png", plot = plotS6, width = 18, height = 12, dpi = 300)
+print(plot6)
 
-####FigureS7------
+
 B_cell_subset_flu_mouse.combined <- subset(flu_mouse.combined, idents = "B Cell")
 #####B cell bach effect
 B_cell_subset_flu_mouse.list <- SplitObject(B_cell_subset_flu_mouse.combined, split.by = "orig.ident")
@@ -1190,9 +935,9 @@ B_cell_subset_flu_mouse.integrated <- RunUMAP(B_cell_subset_flu_mouse.integrated
 B_cell_subset_flu_mouse.integrated <- FindNeighbors(B_cell_subset_flu_mouse.integrated, dims = 1:30)
 B_cell_subset_flu_mouse.integrated <- FindClusters(B_cell_subset_flu_mouse.integrated, resolution = 0.6)
 
-plotS7a<- DimPlot(B_cell_subset_flu_mouse.integrated, group.by = "orig.ident", reduction = "umap") +
+plot7<- DimPlot(B_cell_subset_flu_mouse.integrated, group.by = "orig.ident", reduction = "umap") +
   ggtitle("After B cell subset integration")
-plotS7b<- DimPlot(B_cell_subset_flu_mouse.integrated, group.by = "seurat_clusters", reduction = "umap", label = TRUE) +
+plot7b<- DimPlot(B_cell_subset_flu_mouse.integrated, group.by = "seurat_clusters", reduction = "umap", label = TRUE) +
   ggtitle("After B cell subset integration")
 
 ####Before B cell interation
@@ -1204,39 +949,32 @@ B_cell_subset_flu_mouse.combined <- FindClusters(
   graph.name = "integrated_snn"
 )
 B_cell_subset_flu_mouse.combined <- RunUMAP(B_cell_subset_flu_mouse.combined, dims = 1:30)
-plotS7c <- DimPlot(B_cell_subset_flu_mouse.combined, group.by = "orig.ident", reduction = "umap") +
+plot7c <- DimPlot(B_cell_subset_flu_mouse.combined, group.by = "orig.ident", reduction = "umap") +
   ggtitle("Before B cell subset integration")
-plotS7d <- DimPlot(B_cell_subset_flu_mouse.combined, group.by = "seurat_clusters", reduction = "umap", label = TRUE) +
+plot7d <- DimPlot(B_cell_subset_flu_mouse.combined, group.by = "seurat_clusters", reduction = "umap", label = TRUE) +
   ggtitle("Before B cell subset integration")
-plotS7 <- (plotS7a+plotS7b)/(plotS7c+plotS7d)
-print(plotS7)
-ggsave("./results/FigureS7.pdf", plot = plotS7, width = 18, height = 15)
-ggsave("./results/FigureS7.png", plot = plotS7, width = 18, height = 15, dpi = 300)
+plot7 <- (plot7+plot7b)/(plot7c+plot7d)
+print(plot7)
 
 ####Bcell
-####FigureS8------
+
 DefaultAssay(B_cell_subset_flu_mouse.integrated) <- "RNA"
 B_cell_subset_flu_mouse.integrated <- NormalizeData(B_cell_subset_flu_mouse.integrated)
 B_cell_subset_flu_mouse.integrated <- FindVariableFeatures(B_cell_subset_flu_mouse.integrated, selection.method = "vst", nfeatures = 2000)
 scale.genes <-  rownames(B_cell_subset_flu_mouse.integrated)
 B_cell_subset_flu_mouse.integrated <- ScaleData(B_cell_subset_flu_mouse.integrated, features = scale.genes)
 B_cell_subset_flu_mouse.integrated <- RunPCA(B_cell_subset_flu_mouse.integrated, features = VariableFeatures(B_cell_subset_flu_mouse.integrated))
-plotS8a <- ElbowPlot(B_cell_subset_flu_mouse.integrated, ndims=30, reduction="pca") 
-plotS8b <- DimPlot(B_cell_subset_flu_mouse.integrated, reduction = "pca")
-plotS8 <- plotS8a+plotS8b
-print(plotS8)
-ggsave("./results/FigureS8.pdf", plot = plotS8, width = 12, height = 6)
-ggsave("./results/FigureS8.png", plot = plotS8, width = 12, height = 6, dpi = 300)
+plot8a <- ElbowPlot(B_cell_subset_flu_mouse.integrated, ndims=30, reduction="pca") 
+plot8b <- DimPlot(B_cell_subset_flu_mouse.integrated, reduction = "pca")
+plot8 <- plot8a+plot8b
+print(plot8)
 
-####FigureS9------
 B_cell_subset_flu_mouse.integrated <- FindNeighbors(B_cell_subset_flu_mouse.integrated, dims = 1:20)
 B_cell_subset_flu_mouse.integrated <- FindClusters(B_cell_subset_flu_mouse.integrated, resolution = c(0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2))
-plotS9 <- clustree(B_cell_subset_flu_mouse.integrated)
-print(plotS9)
-ggsave("./results/FigureS9.pdf", plot = plotS9, width = 12, height = 9)
-ggsave("./results/FigureS9.png", plot = plotS9, width = 12, height = 9, dpi = 300)
+plot9 <- clustree(B_cell_subset_flu_mouse.integrated)
+print(plot9)
 
-####FigureS10------
+
 umap_data_bcell_subset <- data.frame(
   UMAP_1 = B_cell_subset_flu_mouse.integrated@reductions$umap@cell.embeddings[, 1],
   UMAP_2 = B_cell_subset_flu_mouse.integrated@reductions$umap@cell.embeddings[, 2],
@@ -1273,16 +1011,14 @@ for (sample_id in sample_list) {
   plot_list_bcell[[sample_id]] <- p_sample
 }
 
-plotS10 <- wrap_plots(plot_list_bcell, ncol = 3)
+plot10 <- wrap_plot(plot_list_bcell, ncol = 3)
 
-plotS10 <- plotS10 +
+plot10 <- plot10 +
   plot_annotation(
     title = 'B Cell Subset UMAP Projections per Sample',
     theme = theme(plot.title = element_text(size = 20, face = 'bold', hjust = 0.5))
   )
-print(plotS10)
-ggsave("./results/FigureS10.pdf", plot = plotS10, width = 18, height = 12)
-ggsave("./results/FigureS10.png", plot = plotS10, width = 18, height = 12, dpi = 300)
+print(plot10)
 
 ####FiguerS11------
 B_cell_subset_flu_mouse.integrated <- FindNeighbors(B_cell_subset_flu_mouse.integrated, dims= 1:20)
@@ -1290,26 +1026,24 @@ B_cell_subset_flu_mouse.integrated <- FindClusters(B_cell_subset_flu_mouse.integ
 table(B_cell_subset_flu_mouse.integrated@meta.data$seurat_clusters)
 metadata <- B_cell_subset_flu_mouse.integrated@meta.data
 B_cell_subset_flu_mouse.cell_cluster <- data.frame(cell_ID=rownames(metadata), cluster_ID=metadata$seurat_clusters)
-write.csv(B_cell_subset_flu_mouse.cell_cluster,'./results/TableS3.csv',row.names = F)
+write.csv(B_cell_subset_flu_mouse.cell_cluster,'./results/Table3.csv',row.names = F)
 
-plotS11a <- DimPlot(B_cell_subset_flu_mouse.integrated, reduction = "umap", label = TRUE)+ 
+plot11a <- DimPlot(B_cell_subset_flu_mouse.integrated, reduction = "umap", label = TRUE)+ 
   theme(
     legend.title = element_text(family = "Arial", size = 18), 
     legend.text = element_text(family = "Arial", size = 18),              
     plot.title = element_text(family = "Arial", size = 20, face = "bold", hjust = 0.5), 
     axis.title = element_text(family = "Arial", size = 15), 
     axis.text = element_text(family = "Arial", size = 15))
-plotS11b <- DimPlot(B_cell_subset_flu_mouse.integrated, reduction = "umap",  group.by = "orig.ident")+ 
+plot11b <- DimPlot(B_cell_subset_flu_mouse.integrated, reduction = "umap",  group.by = "orig.ident")+ 
   theme(
     legend.title = element_text(family = "Arial", size = 18), 
     legend.text = element_text(family = "Arial", size = 18),              
     plot.title = element_text(family = "Arial", size = 20, face = "bold", hjust = 0.5), 
     axis.title = element_text(family = "Arial", size = 15), 
     axis.text = element_text(family = "Arial", size = 15))
-plotS11<- plotS11a + plotS11b
-print(plotS11)
-ggsave("./results/FigureS11.pdf", plot = plotS11, width = 12, height = 6)
-ggsave("./results/FigureS11.png", plot = plotS11, width = 12, height = 6)
+plot11<- plot11a + plot11b
+print(plot11)
 
 B_cell_subset_flu_mouse.integrated <- JoinLayers(B_cell_subset_flu_mouse.integrated, assay = "RNA")
 dim(B_cell_subset_flu_mouse.integrated[["RNA"]]$data) 
@@ -1321,22 +1055,6 @@ B_cell_subset_flu_mouse.integrated <- readRDS(
   "./results/B_cell_subset_flu_mouse.integrated.rds"
 )
 #marker
-#B_MZ = c("Cr2","Cd1d1","S1pr3")#
-#B_RC = c("Fcrl5","Zbtb20","Ptpn22")#
-#B_GC_Pre = c("Eif4a1","Mif","Ran","Eif5a","Npm1")#
-#B_GC_LZ = c("Cd83","Cd69")#
-#B_GC_DZ = c("Rps15a","Rps26","Rps20")#
-#B_GC = c("Hmgb2","Tuba1b","Top2a","Tubb5")#
-#B_PC = c("Sdc1","Slpi","Jchain","Xbp1","Slc3a2","Ly6a","Mzb1")#
-#B_Native = c("Ccr7","Cd79a","Fcmr")#
-#B_MC_Pre = c("Bach2","Ebf1")#
-#B_MC = c("Spib","Vpreb3","Fam129c")#
-# cluster14_markers <- B_cell_subset_flu_mouse.integrated_markers.genes %>%
-#   filter(cluster == 14)
-# head(cluster14_markers)
-# cluster16_markers <- B_cell_subset_flu_mouse.integrated_markers.genes %>%
-#   filter(cluster == 16)
-# head(cluster16_markers)
 Bcell_genes_all1 = c( "Cr2","Cd1d1","Cd9",#MZ
                       #"Ccr7","Ebf1","Btg1","Cd79a",#Native
                       #"Cd69","Cd83","Nr4a1",#Native/Activated
@@ -1350,13 +1068,11 @@ Bcell_genes_all1 = c( "Cr2","Cd1d1","Cd9",#MZ
 #Bmem:2,22
 #PB:3,5,6,8,9,10,12,15,16,17,18
 
-plotS12 <- DotPlot(B_cell_subset_flu_mouse.integrated, features = Bcell_genes_all1)+ 
+plot12 <- DotPlot(B_cell_subset_flu_mouse.integrated, features = Bcell_genes_all1)+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5))
-print(plotS12)
-ggsave("./results/FigureS12.pdf", plot = plotS12, width = 18, height = 9)
-ggsave("./results/FigureS12.png", plot = plotS12, width = 18, height = 9)
+print(plot12)
 
-##### Figure1d: B cell heatmap ------
+##### B cell heatmap ------
 table(Idents(B_cell_subset_flu_mouse.integrated))
 Idents(B_cell_subset_flu_mouse.integrated) <- "seurat_clusters"
 B_cell_subset_flu_mouse.integrated <- RenameIdents(object = B_cell_subset_flu_mouse.integrated,
@@ -1386,7 +1102,6 @@ B_cell_subset_flu_mouse.integrated <- RenameIdents(object = B_cell_subset_flu_mo
                                    "2" = "Bmem",
                                    "22" = "Bmem")
 table(Idents(B_cell_subset_flu_mouse.integrated))
-#DefaultAssay(flu_mouse.combined) <- "RNA"
 B_cell_subset_flu_mouse.integrated <- JoinLayers(B_cell_subset_flu_mouse.integrated, assay = "RNA")
 dim(B_cell_subset_flu_mouse.integrated[["RNA"]]$data) 
 B_cell_subset_flu_mouse.integrated_markers.gene <- FindAllMarkers(B_cell_subset_flu_mouse.integrated, logfc.threshold = 0.25, test.use = "wilcox", assay = "RNA",
@@ -1445,15 +1160,10 @@ plot1c <- p +
 
 print(plot1c)
 
-ggsave(filename="./results/Figure1c.pdf", plot = plot1c, width = 9, height = 16)
-ggsave(filename="./results/Figure1c.png", plot = plot1c, width = 9, height = 16)
-#mz:0,7
-#GC:1,4,11,13,14,19,20,21,23,24
-#Bmem:2,22
-#PB:3,5,6,8,9,10,12,15,16,17,18
+ggsave(filename="./results/Figure1.pdf", plot = plot1c, width = 9, height = 16)
+ggsave(filename="./results/Figure1.png", plot = plot1c, width = 9, height = 16)
 
-##### Figure1a: B cell umap ------
-#B_cell_subset_flu_mouse.integrated@meta.data$B_cell_subpopulations <- NULL
+#####B cell umap ------
 B_cell_subset_flu_mouse.integrated@meta.data$B_cell_subpopulations <- plyr::mapvalues(
                                                                            from = c (0,7,1,4,11,13,14,19,20,21,23,24,2,22,3,5,6,8,9,10,12,15,16,17,18),
                                                                            to = c(rep("MZ",2), 
@@ -1464,7 +1174,6 @@ B_cell_subset_flu_mouse.integrated@meta.data$B_cell_subpopulations <- plyr::mapv
                                                                            x = B_cell_subset_flu_mouse.integrated@meta.data$seurat_clusters)
 
 head(B_cell_subset_flu_mouse.integrated@meta.data)
-# () 
 table(B_cell_subset_flu_mouse.integrated@meta.data$B_cell_subpopulations)
 
 umap_data <- data.frame(
@@ -1516,13 +1225,13 @@ plot1a <- ggplot() +
     legend.position = "none",
     plot.background = element_rect(fill = "white", color = NA)  )
 print(plot1a)
-ggsave("./results/Figure1a.pdf", plot = plot1a, width = 9, height = 8)
-ggsave("./results/Figure1a.png", plot = plot1a, width = 9, height = 8, dpi = 300)
+ggsave("./results/Figure2.pdf", plot = plot1a, width = 9, height = 8)
+ggsave("./results/Figure2.png", plot = plot1a, width = 9, height = 8, dpi = 300)
 
-##### Figure1b: Cell counts and percentage, Antigenic stimulation drives robust expansion of antigen-experienced B cell populations ------------------------------------------------
+##### Cell counts and percentage, Antigenic stimulation drives robust expansion of antigen-experienced B cell populations ------------------------------------------------
 
 meta_df <- B_cell_subset_flu_mouse.integrated@meta.data
-write.csv(meta_df,'./results/TableS4.csv',row.names = F)
+write.csv(meta_df,'./results/Table4.csv',row.names = F)
 
 plot_data_grouped <- meta_df %>%
   # unlist
@@ -1582,17 +1291,15 @@ plot1b <- ggplot(plot_data_grouped, aes(x = experiment_group, y = n, fill = B_ce
     legend.text = element_text(size = 18)
   )
 print(plot1b)
-ggsave("./results/Figure1b.pdf", plot = plot1b, width = 9, height = 4.5)
-ggsave("./results/Figure1b.png", plot = plot1b, width = 9, height = 4.5, dpi = 300)
+ggsave("./results/Figure3.pdf", plot = plot1b, width = 9, height = 4.5)
+ggsave("./results/Figure3.png", plot = plot1b, width = 9, height = 4.5, dpi = 300)
 
-##### Figure1d: Dotplot, identification of distinct B cell functional subsets -----------------------------------------------
-Bcell_genes_all1 = c( "Cr2","Cd1d1","Cd9",#MZ
-                      #"Ccr7","Ebf1","Btg1","Cd79a",#Native
-                      #"Cd69","Cd83","Nr4a1",#Native/Activated
-                      "Eif4a1","Mif","Ran","Eif5a","Npm1",#PreGC
-                      "Mki67","Hmgb2", "Tuba1b", "Top2a","Tubb5",#GC
-                      "Bach2", "Spib","Cd19","Vpreb3","Fam129c",#Bmem
-                      "Sdc1","Slpi","Jchain","Prdm1","Xbp1","Slc3a2","Ly6a","Mzb1")#PB
+#####Dotplot, identification of distinct B cell functional subsets -----------------------------------------------
+Bcell_genes_all1 = c( "Cr2","Cd1d1",
+                      "Eif4a1","Mif","Ran",#PreGC
+                      "Mki67","Hmgb2", "Tuba1b",#GC
+                      "Bach2", "Spib","Cd19",#Bmem
+                      "Sdc1","Slpi","Jchain","Prdm1")#PB
 
 plot1d <- DotPlot(B_cell_subset_flu_mouse.integrated, features = Bcell_genes_all1,group.by = "B_cell_subpopulations") +
    scale_color_gradientn(
@@ -1620,10 +1327,10 @@ plot1d <- DotPlot(B_cell_subset_flu_mouse.integrated, features = Bcell_genes_all
     )
   )
 print(plot1d)
-ggsave("./results/Figure1d.pdf", plot = plot1d, width = 18, height = 6)
-ggsave("./results/Figure1d.png", plot = plot1d, width = 18, height = 6)
+ggsave("./results/Figure4.pdf", plot = plot1d, width = 18, height = 6)
+ggsave("./results/Figure4.png", plot = plot1d, width = 18, height = 6)
 
-# #### Figure1e: Split UMAPs,NaiveH1N1H5N1 -----------------------------------------------
+# ####Split UMAPs,NaiveH1N1H5N1 -----------------------------------------------
 
 obj <- B_cell_subset_flu_mouse.integrated
 
@@ -1678,20 +1385,11 @@ plot1e <- ggplot() +
   guides(color = guide_legend(override.aes = list(size = 8)))
 
 print(plot1e)
-ggsave("./results/Figure1e.pdf", plot = plot1e, width = 18, height = 6)
-ggsave("./results/Figure1e.png", plot = plot1e, width = 18, height = 6)
+ggsave("./results/Figure5.pdf", plot = plot1e, width = 18, height = 6)
+ggsave("./results/Figure5.png", plot = plot1e, width = 18, height = 6)
 
-##### Figure1f: Pseudotime -----------------------------------------------
-# install.packages("sf", dependencies = TRUE)
-# install.packages("spdep")
-# library(sf)
-# library(spdep)
-# Sys.setenv(PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig")
-# Sys.setenv(H5CC="/usr/bin/h5cc")
-# remotes::install_github("bnprks/BPCells/r")
+##### Pseudotime -----------------------------------------------
 # 
-# remotes::install_github("cole-trapnell-lab/monocle3")
-# remotes::install_github("satijalab/seurat-wrappers")
 library(BPCells)
 packageVersion("BPCells")
 library(monocle3)
@@ -1772,10 +1470,10 @@ time[time==Inf] = 0
 time = data.frame(cell=names(time), pseudotime=time)
 write.table(time, file="./results/pseudotime_data.txt", sep="\t", quote=F, col.names=T, row.names=F)
 saveRDS(cds, file="./results/monocle3_result.rds")
-ggsave(filename="./results/Figure1f.pdf", plot = plot1f, width = 10, height = 8)
-ggsave(filename="./results/Figure1f.png", plot = plot1f, width = 10, height = 8)
+ggsave(filename="./results/Figure6.pdf", plot = plot1f, width = 10, height = 8)
+ggsave(filename="./results/Figure6.png", plot = plot1f, width = 10, height = 8)
 
-##### Figure1g: DEG for PB-----------------------------------------------
+#####  DEG for PB-----------------------------------------------
 
 ###1
 PB_cells <- subset(B_cell_subset_flu_mouse.integrated, 
@@ -1790,7 +1488,6 @@ head(PB_cells@meta.data)
 table(PB_cells$group_name)
 #
 #  'group_name' 
-# logfc.threshold = 0.25  min.pct = 0.1 
 deg_PB_standard <- FindMarkers(PB_cells, 
                                ident.1 = "flu_H5", 
                                ident.2 = "flu_H1", 
@@ -1850,7 +1547,6 @@ PB_aggregated_results <- PB_all_iterations_df %>%
   summarise(
     mean_avg_log2FC = mean(avg_log2FC, na.rm = TRUE),
     mean_p_val_adj = mean(p_val_adj, na.rm = TRUE),
-    #  ( p.adj < 0.05)
     n_significant = sum(p_val_adj < 0.05, na.rm = TRUE),
     .groups = 'drop'
   )
@@ -1881,7 +1577,6 @@ PB_volcano_data <- PB_volcano_data %>%
     )
   )
 
-# () 
 table(PB_volcano_data$significance)
 
 # 3. 
@@ -1926,182 +1621,9 @@ plot1g <- ggplot(PB_volcano_data, aes(x = mean_avg_log2FC, y = neg_log10_padj)) 
   )
 
 print(plot1g)
-ggsave(filename="./results/Figure1g.pdf", plot = plot1g, width = 8.5, height = 7)
-ggsave(filename="./results/Figure1g.png", plot = plot1g, width = 8.5, height = 7)
+ggsave(filename="./results/Figure7.pdf", plot = plot1g, width = 8.5, height = 7)
+ggsave(filename="./results/Figure7.png", plot = plot1g, width = 8.5, height = 7)
 
-##### Figure1h: DEG for GC-----------------------------------------------
-# MZ_cells <- subset(B_cell_subset_flu_mouse.integrated, 
-#                    subset = B_cell_subpopulations == "MZ")
-# MZ_group_names <- case_when(
-# MZ_cells$orig.ident %in% c("naive_mouse1", "naive_mouse2") ~ "naive", # PB_cellsnaive
-#   MZ_cells$orig.ident %in% c("flu_H1_mouse1", "flu_H1_mouse2") ~ "flu_H1",
-#   MZ_cells$orig.ident == "flu_H5_mouse" ~ "flu_H5"
-# )
-# MZ_cells$group_name <- MZ_group_names
-# head(MZ_cells@meta.data)
-# table(MZ_cells$group_name)
-# #
-# #  'group_name' 
-# # logfc.threshold = 0.25  min.pct = 0.1 
-# deg_MZ_standard <- FindMarkers(MZ_cells, 
-#                                ident.1 = "flu_H5", 
-#                                ident.2 = "flu_H1", 
-#                                group.by = "group_name",
-#                                logfc.threshold = 0.25,
-#                                min.pct = 0.1)
-# 
-# # 
-# head(deg_MZ_standard)
-# 
-# 
-# ###2
-# # 1. ID
-# h1_MZ_cells <- WhichCells(MZ_cells, expression = group_name == "flu_H1")
-# h5_MZ_cells <- WhichCells(MZ_cells, expression = group_name == "flu_H5")
-# 
-# n_h1 <- length(h1_MZ_cells)
-# n_h5 <- length(h5_MZ_cells)
-# 
-# target_n <- min(n_h1, n_h5) # 600
-# 
-# # 2. 
-# n_iterations <- 50 # 50100
-# MZ_deg_results_list <- list() # 
-# 
-# for (i in 1:n_iterations) {
-#   set.seed(i)
-#   h5_sampled_cells <- sample(h5_MZ_cells, size = target_n)
-#   combined_cells <- c(h1_MZ_cells, h5_sampled_cells)
-#   temp_subset <- subset(MZ_cells, cells = combined_cells)
-#   
-# # FindMarkers
-# #  logfc.threshold  min.pct 0
-#   MZ_deg_temp <- FindMarkers(temp_subset,
-#                           ident.1 = "flu_H5",
-#                           ident.2 = "flu_H1",
-#                           group.by = "group_name",
-#                           logfc.threshold = 0, # FC
-#                           min.pct = 0,         # 
-# verbose = FALSE)     #
-#   
-# #
-#   MZ_deg_temp$gene <- rownames(MZ_deg_temp)
-#   
-#   # 
-#   MZ_deg_results_list[[i]] <- MZ_deg_temp
-#   
-#   print(paste("Completed iteration:", i))
-# }
-# ### ****
-# 
-# library(dplyr)
-# library(tibble)
-# 
-# # 1. 
-# MZ_all_iterations_df <- bind_rows(MZ_deg_results_list)
-# 
-# # 2.
-# #  avg_log2FC  p_val_adj
-# #
-# MZ_aggregated_results <- MZ_all_iterations_df %>%
-#   group_by(gene) %>%
-#   summarise(
-#     mean_avg_log2FC = mean(avg_log2FC, na.rm = TRUE),
-#     mean_p_val_adj = mean(p_val_adj, na.rm = TRUE),
-#     #  ( p.adj < 0.05)
-#     n_significant = sum(p_val_adj < 0.05, na.rm = TRUE),
-#     .groups = 'drop'
-#   )
-# 
-# # 3. 
-# #  -log10 of the mean adjusted p-value
-# MZ_volcano_data <- MZ_aggregated_results %>%
-#   mutate(
-#     neg_log10_padj = -log10(mean_p_val_adj)
-#   )
-# 
-# # 
-# head(MZ_volcano_data)
-# 
-# library(ggplot2)
-# library(ggrepel)
-# 
-# # 1. 
-# log2FC_threshold <- 1  # log2FC > 0.5  < -0.5
-# padj_threshold <- 0.05   #  -log10(0.05)  1.3
-# 
-# # 2.
-# MZ_volcano_data <- MZ_volcano_data %>%
-#   mutate(
-#     significance = case_when(
-#       mean_avg_log2FC > log2FC_threshold & mean_p_val_adj < padj_threshold ~ "Upregulated in H5",
-#       mean_avg_log2FC < -log2FC_threshold & mean_p_val_adj < padj_threshold ~ "Downregulated in H5",
-#       TRUE ~ "Not Significant"
-#     )
-#   )
-# 
-# # () 
-# table(MZ_volcano_data$significance)
-# 
-# # 3. 
-# MZ_genes_to_label <- MZ_volcano_data %>%
-#   filter(abs(mean_avg_log2FC) > log2FC_threshold & mean_p_val_adj < padj_threshold) %>%
-#   arrange(mean_p_val_adj) %>%
-#   head(30)
-# 
-# # 4. 
-# plot1h1 <- ggplot(MZ_volcano_data, aes(x = mean_avg_log2FC, y = neg_log10_padj)) +
-#   # 
-#   geom_point(aes(color = significance), alpha = 0.8, size = 1.5) +
-#   
-#   # 
-#   scale_color_manual(values = c(
-#     "Upregulated in H5" = "#D55E00", 
-#     "Downregulated in H5" = "#3A8EBA", 
-#     "Not Significant" = "grey80"
-#   )) +
-#   
-#   # 
-#   geom_vline(xintercept = c(-log2FC_threshold, log2FC_threshold),
-#              linetype = "dashed", color = "grey50") +
-#   geom_hline(yintercept = -log10(padj_threshold),
-#              linetype = "dashed", color = "grey50") +
-#   
-#   #  ggrepel ✅  x / y 
-#   geom_text_repel(
-#     data = genes_to_label, 
-#     aes(
-#       x = mean_avg_log2FC, 
-#       y = neg_log10_padj, 
-#       label = gene
-#     ),
-#     size = 4,
-#     box.padding = 0.5,
-#     point.padding = 0.5,
-#     max.overlaps = Inf
-#   ) +
-#   
-#   labs(
-#     title = "Volcano Plot of GC cells: H5 vs H1",
-#     x = "Mean Log2 Fold Change",
-#     y = "-log10(Mean Adjusted P-value)",
-#     color = "Significance"
-#   ) +
-#   theme_classic() +
-#   theme(
-#     plot.title = element_text(hjust = 0.5, face = "bold", size = 18, family = "Arial"),
-#     axis.title.x = element_text(size = 18, family = "Arial"),  # x 
-#     axis.title.y = element_text(size = 18, family = "Arial"),  # y 
-#     legend.position = "top",
-#     legend.title = element_text(size = 16, face = "bold", family = "Arial"),  # Arial
-#     legend.text = element_text(size = 16, family = "Arial"),  # Arial
-#     legend.margin = margin(t = 8),  
-#     text = element_text(size = 18, family = "Arial")  # Arial
-#   )
-# 
-# print(plot1h1)
-# ggsave(filename="./results/Figure1h1.pdf", plot = plot1h, width = 8.5, height = 7)
-# ggsave(filename="./results/Figure1h1.png", plot = plot1h, width = 8.5, height = 7)
 GC_cells <- subset(B_cell_subset_flu_mouse.integrated, 
                    subset = B_cell_subpopulations == "GC")
 GC_group_names <- case_when(
@@ -2114,7 +1636,6 @@ head(GC_cells@meta.data)
 table(GC_cells$group_name)
 #
 #  'group_name' 
-# logfc.threshold = 0.25  min.pct = 0.1 
 deg_GC_standard <- FindMarkers(GC_cells, 
                                ident.1 = "flu_H5", 
                                ident.2 = "flu_H1", 
@@ -2173,7 +1694,6 @@ GC_aggregated_results <- GC_all_iterations_df %>%
   summarise(
     mean_avg_log2FC = mean(avg_log2FC, na.rm = TRUE),
     mean_p_val_adj = mean(p_val_adj, na.rm = TRUE),
-    #  ( p.adj < 0.05)
     n_significant = sum(p_val_adj < 0.05, na.rm = TRUE),
     .groups = 'drop'
   )
@@ -2204,7 +1724,6 @@ GC_volcano_data <- GC_volcano_data %>%
     )
   )
 
-# () 
 table(GC_volcano_data$significance)
 
 # 3. 
@@ -2253,12 +1772,10 @@ plot1h <- ggplot(GC_volcano_data, aes(x = mean_avg_log2FC, y = neg_log10_padj)) 
   )
 
 print(plot1h)
-ggsave(filename="./results/Figure1h.pdf", plot = plot1h, width = 10, height = 8)
-ggsave(filename="./results/Figure1h.png", plot = plot1h, width = 10, height = 8.5,dpi = 300)
+ggsave(filename="./results/Figure8.pdf", plot = plot1h, width = 10, height = 8)
+ggsave(filename="./results/Figure8.png", plot = plot1h, width = 10, height = 8.5,dpi = 300)
 
-### Figure 3: ------------------------------------------------
 
-##### Figure3a------
 obj <- B_cell_subset_flu_mouse.integrated  
 
 # 1)  condition
@@ -2290,7 +1807,6 @@ obj$BCR_paired_strict <- obj$BCR_paired &
 table(obj$BCR_paired, useNA = "ifany")
 table(obj$BCR_paired_strict, useNA = "ifany")
 
-#()
 #  RNA–BCR 
 obj_bcr <- subset(obj, subset = BCR_paired)# obj_bcr <- subset(obj, subset = BCR_paired_strict)  # 
 
@@ -2309,7 +1825,6 @@ library(ggplot2)
 library(dplyr)
 library(patchwork)
 
-# 1.  ()
 cell_type_colors <- c(
   "MZ" = "#3A8EBA", 
   "GC" = "#E69F00", 
@@ -2320,12 +1835,10 @@ cell_type_colors <- c(
 conditions_ordered <- c("naive", "flu_H1", "flu_H5")
 obj_bcr$condition <- factor(obj_bcr$condition, levels = conditions_ordered)
 summary_df <- obj_bcr@meta.data %>%
-  #  (condition)  (B_cell_subpopulations) 
   group_by(condition, B_cell_subpopulations) %>%
   summarise(count = n(), .groups = 'drop_last') %>%
   #  condition 
   mutate(proportion = count / sum(count)) %>%
-  # ungroup()
   ungroup()
 
 print(summary_df)
@@ -2353,9 +1866,7 @@ for (cond in conditions_ordered) {
   summary_subset <- summary_df %>% filter(condition == cond)
   
   barplot <- ggplot(summary_subset, aes(x = " ", y = proportion, fill = B_cell_subpopulations)) +
-    # <-- 1.  coord_flip()  -->
     geom_col(width = 0.3) +    
-    # <-- 2.  -->
     geom_text(aes(label = scales::percent(proportion, accuracy = 1)),
               position = position_stack(vjust = 0.2), 
               color = "black", 
@@ -2375,25 +1886,22 @@ for (cond in conditions_ordered) {
   plot_list[[cond]] <- combined_panel
 }
 # 3
-plot3a <- wrap_plots(plot_list, ncol = 3)+plot_layout(guides = "collect")
+plot3a <- wrap_plot(plot_list, ncol = 3)+plot_layout(guides = "collect")
 
 print(plot3a)
-ggsave("./results/Figure3a.pdf", plot = plot3a, width = 15, height = 5, device = "pdf")
-ggsave("./results/Figure3a.png", plot = plot3a, width = 15, height = 5, dpi = 300, device = "png")
+ggsave("./results/Figure9.pdf", plot = plot3a, width = 15, height = 5, device = "pdf")
+ggsave("./results/Figure9.png", plot = plot3a, width = 15, height = 5, dpi = 300, device = "png")
 
-##### Figure3b------
+
 obj_bcr@meta.data <- obj_bcr@meta.data %>%
-  #  1:  ()
   mutate(treatment_group = case_when(
     grepl("naive", orig.ident, ignore.case = TRUE) ~ "Naive",
     grepl("H1", orig.ident, ignore.case = TRUE)    ~ "Flu_H1",
     grepl("H5", orig.ident, ignore.case = TRUE)    ~ "Flu_H5",
     TRUE                                          ~ "Other"
   )) %>%
-  # 2:  ()
   mutate(treatment_group = factor(treatment_group, levels = c("Naive", "Flu_H1", "Flu_H5")))
 
-# () 
 cat(" ( Naive, Flu_H1, Flu_H5):\n")
 print(levels(obj_bcr$treatment_group))
 
@@ -2445,10 +1953,10 @@ plot3b <- DimPlot(
   labs(title = "") 
 
 print(plot3b)
-ggsave("./results/Figure3b.pdf", plot = plot3b, width = 15, height = 5, device = "pdf")
-ggsave("./results/Figure3b.png", plot = plot3b, width = 15, height = 5, dpi = 300, device = "png")
+ggsave("./results/Figure10.pdf", plot = plot3b, width = 15, height = 5, device = "pdf")
+ggsave("./results/Figure10.png", plot = plot3b, width = 15, height = 5, dpi = 300, device = "png")
 
-#####figure3c------
+
 naive_mouse.bcr$barcode <- sub("_contig_\\d+", "", naive_mouse.bcr$sequence_id)
 
 library(dplyr)
@@ -2514,7 +2022,6 @@ shm_summary <- obj_bcr@meta.data %>%
   )
 print(shm_summary)
 library(tidyr)
-# --- 1.  () ---
 obj_bcr@meta.data <- obj_bcr@meta.data %>%
   #  1a: 
   mutate(treatment_group = case_when(
@@ -2528,11 +2035,9 @@ obj_bcr@meta.data <- obj_bcr@meta.data %>%
   #  1b:  SHM  NA  0
   mutate(MU_FREQ_HEAVY_TOTAL = replace_na(MU_FREQ_HEAVY_TOTAL, 0))
 
-# --- 2.  () ---
 # "shm_freq_meta"
 obj_bcr$shm_freq_meta <- obj_bcr$MU_FREQ_HEAVY_TOTAL
 
-# () 
 summary(obj_bcr$shm_freq_meta)
 # 1.  UMAP 
 umap_coords <- as.data.frame(Embeddings(obj_bcr, reduction = "umap"))
@@ -2573,10 +2078,10 @@ plot3c <- ggplot(
   )
 
 print(plot3c)
-ggsave("./results/Figure3c.pdf", plot = plot3c, width = 15, height = 5, device = "pdf")
-ggsave("./results/Figure3c.png", plot = plot3c, width = 15, height = 5, dpi = 300, device = "png")
+ggsave("./results/Figure11.pdf", plot = plot3c, width = 15, height = 5, device = "pdf")
+ggsave("./results/Figure11.png", plot = plot3c, width = 15, height = 5, dpi = 300, device = "png")
 
-#####figure3d------
+
 library(dplyr)
 library(tibble)
 library(ggplot2)
@@ -2689,10 +2194,9 @@ table_summary <- plot_df %>%
   arrange(group, tag, desc(n_cells))
 
 print(table_summary)
-ggsave("./results/Figure3d.pdf", plot = plot3d, width = 15, height = 5, device = "pdf")
-ggsave("./results/Figure3d.png", plot = plot3d, width = 15, height = 5, dpi = 300, device = "png")
+ggsave("./results/Figure12.pdf", plot = plot3d, width = 15, height = 5, device = "pdf")
+ggsave("./results/Figure12.png", plot = plot3d, width = 15, height = 5, dpi = 300, device = "png")
 
-### Figure 2: ------------------------------------------------
 
 flu_H1_mouse1.bcr <- read_tsv("./cell_reports/VDJ/annotation_results/fluH1_mouse1.merge.final.bcr.shm.tsv")
 flu_H1_mouse2.bcr <- read_tsv("./cell_reports/VDJ/annotation_results/fluH1_mouse2.merge.final.bcr.shm.tsv")
@@ -2703,18 +2207,6 @@ naive_mouse2.bcr <- read_tsv("./cell_reports/VDJ/annotation_results/naive_mouse2
 flu_H1_mouse.bcr <- bind_rows(flu_H1_mouse1.bcr, flu_H1_mouse2.bcr)
 naive_mouse.bcr <- bind_rows(naive_mouse1.bcr, naive_mouse2.bcr)
 
-####Figure 2a VH_VL usage------
-
-library(readr)
-library(dplyr)
-library(stringr)
-library(tidyr) 
-library(ggplot2)
-library(treemapify)
-library(RColorBrewer)
-
-# ---  1:  ---
-# !!! : folder !!!
 results_directory <- "./results/Chord_Diagrams_Final_Corrected"
 
 # folder
@@ -2856,7 +2348,6 @@ list_of_samples <- list(
   naive_mouse_combined = naive_mouse.bcr
 )
 
-# ---  3:  (Top 30) ---
 generate_chord_diagram_top30_heavy <- function(sample_data, sample_name, output_dir) {
   
   message("\n----------------------------------------------------")
@@ -2912,7 +2403,6 @@ generate_chord_diagram_top30_heavy <- function(sample_data, sample_name, output_
     circos.clear()
     circos.par(canvas.xlim = c(-1.2, 1.2), canvas.ylim = c(-1.2, 1.2), start.degree = 90)
     
-    #  ()
     chordDiagram(data_matrix, order = gene_order, grid.col = grid_colors,
                  annotationTrack = "grid", 
                  preAllocateTracks = list(
@@ -2920,12 +2410,8 @@ generate_chord_diagram_top30_heavy <- function(sample_data, sample_name, output_
                    list(track.height = 0.15)  # 3 ()
                  ))
     
-    #  A:  (1) 
     circos.track(track.index = 1, bg.border = NA, panel.fun = function(x, y) {})
-    #highlight.sector(sector.index = heavy_genes, track.index = 1, col = "#2171b5")
-    #highlight.sector(sector.index = light_genes, track.index = 1, col = "#238b45")
     
-    #  C:  (3) 
     circos.track(track.index = 2, bg.border = NA, panel.fun = function(x, y) {
       circos.text(get.cell.meta.data("xcenter"), 
                   get.cell.meta.data("ylim")[1] + mm_y(4),
@@ -2974,26 +2460,6 @@ for (name in names(list_of_samples)) {
   })
 }
 
-####Figure 2b VH and VL density------
-# --- Step 0: Install and load required R packages ---
-
-packages_to_install <- c("dplyr", "readr", "tidyr", "stringr", "ggplot2", 
-                         "treemapify", "RColorBrewer", "showtext")
-for (pkg in packages_to_install) {
-  if (!requireNamespace(pkg, quietly = TRUE)) {
-    install.packages(pkg)
-  }
-}
-
-library(dplyr)
-library(readr)
-library(tidyr)
-library(stringr)
-library(ggplot2)
-library(treemapify)
-library(RColorBrewer)
-
-# ---  2:  ---
 
 # 2.1 5
 base_path <- "./cell_reports/VDJ/annotation_results/"
@@ -3037,7 +2503,6 @@ tryCatch({
 })
 
 # ---  4:  ---
-# (FoundArial)
 generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
   message("\n--- Start processing sample: ", sample_name, " ---")
   
@@ -3095,7 +2560,6 @@ generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
 }
 
 # ---  5:  ---
-# ()
 for (name in names(list_of_samples)) {
   current_data <- list_of_samples[[name]]
   tryCatch({
@@ -3123,7 +2587,6 @@ tryCatch({
 })
 
 # ---  4:  ---
-# (FoundArial)
 generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
   message("\n--- Start processing sample: ", sample_name, " ---")
   
@@ -3181,7 +2644,6 @@ generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
 }
 
 # ---  5:  ---
-# ()
 for (name in names(list_of_samples)) {
   current_data <- list_of_samples[[name]]
   tryCatch({
@@ -3192,23 +2654,6 @@ for (name in names(list_of_samples)) {
 }
 
 ####top30
-# --- Heavy top 30 ---
-# ---  0: R ---
-packages_to_install <- c("dplyr", "readr", "stringr", "tidyr", 
-                         "ggplot2", "treemapify", "RColorBrewer")
-for (pkg in packages_to_install) {
-  if (!requireNamespace(pkg, quietly = TRUE)) {
-    install.packages(pkg)
-  }
-}
-
-library(dplyr)
-library(readr)
-library(stringr)
-library(tidyr)
-library(ggplot2)
-library(treemapify)
-library(RColorBrewer)
 
 # --- Step 1: Load, merge and prepare data ---
 base_path <- "./cell_reports/VDJ/annotation_results/"
@@ -3238,7 +2683,6 @@ results_directory <- "./results/Treemap_Heavy_Top30"
 dir.create(results_directory, showWarnings = FALSE, recursive = TRUE)
 message("Output directory ready: ", results_directory)
 
-# ---  3:  (Top 30) ---
 generate_heavy_chain_top30_treemap <- function(sample_data, sample_name, output_dir) {
   
   message("\n--- Start processing sample: ", sample_name, " ---")
@@ -3316,7 +2760,6 @@ results_directory <- "./results/Treemap_Light_Top30"
 dir.create(results_directory, showWarnings = FALSE, recursive = TRUE)
 message("Output directory ready: ", results_directory)
 
-# ---  3:  (Top 30) ---
 generate_light_chain_top30_treemap <- function(sample_data, sample_name, output_dir) {
   
   message("\n--- Start processing sample: ", sample_name, " (Light Chain) ---")
@@ -3331,7 +2774,6 @@ generate_light_chain_top30_treemap <- function(sample_data, sample_name, output_
     count(light_v, name = "total_value") %>%
     arrange(desc(total_value)) %>%
     slice_head(n = 20) %>%
-    # --- !!!  2:  (IGKV -> VK, IGLV -> VL) !!! ---
     mutate(label = case_when(
       grepl("IGKV", light_v) ~ str_replace(light_v, "IGKV", "VK"),
       grepl("IGLV", light_v) ~ str_replace(light_v, "IGLV", "VL"),
@@ -3391,15 +2833,6 @@ for (name in names(list_of_samples)) {
     message("Error processing sample '", name, "' error: ", e$message)
   })
 }
-
-####Figure 2c V-D-J------
-
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(ggalluvial)
-library(RColorBrewer)
-library(readr)
 
 base_path <- "./cell_reports/VDJ/annotation_results/"
 setwd(base_path)
@@ -3526,15 +2959,6 @@ for (sample_name in names(sample_list)) {
   })
 }
 
-# ---  0: R ---
-# ---  0: R ---
-# : install.packages(c("dplyr", "tidyr", "ggplot2", "ggalluvial", "RColorBrewer", "readr"))
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(ggalluvial)
-library(RColorBrewer)
-library(readr)
 
 # --- Step 1: Load, merge and prepare data ---
 
@@ -3640,8 +3064,6 @@ generate_sankey_plot <- function(
       axis.text.x = element_text(
         size = axis_text_size, 
         face = "bold",
-        #  margin()  (, , , )
-        # (t)
         margin = margin(t = -30, unit = "pt") # -10
       ),
       axis.text.y = element_blank(),
@@ -3669,7 +3091,6 @@ for (name in names(sample_list)) {
   tryCatch({
     data_for_plotting <- prepare_sankey_data(sample_list[[name]], top_n = 20)
     
-    #  ()
     generate_sankey_plot(data_for_plotting, name, output_dir)
     
   }, error = function(e) {
@@ -3677,8 +3098,8 @@ for (name in names(sample_list)) {
   })
 }
 
-### Figure 4: ------------------------------------------------
-#####Figure4a: Isotype ------------------------------------------------
+### Figure: ------------------------------------------------
+#####Isotype ------------------------------------------------
 
 packages_to_install <- c("dplyr", "readr", "stringr", "ggplot2", "RColorBrewer", "scales")
 for (pkg in packages_to_install) {
@@ -3746,12 +3167,10 @@ plot4a <- ggplot(isotype_proportions, aes(x = group, y = proportion, fill = isot
   )
 
 print(plot4a)
-ggsave("./results/Figure4a.pdf", plot = plot4a, width = 6, height = 5, device = "pdf")
-ggsave("./results/Figure4a.png", plot = plot4a, width = 6, height = 5, dpi = 300, device = "png")
+ggsave("./results/Figure13.pdf", plot = plot4a, width = 6, height = 5, device = "pdf")
+ggsave("./results/Figure13.png", plot = plot4a, width = 6, height = 5, dpi = 300, device = "png")
 
-#####FigureS13----
-
-# 1.1  5
+# 1.1  
 list_of_samples <- list(
   "Flu_H1_Mouse1" = flu_H1_mouse1.bcr,
   "Flu_H1_Mouse2" = flu_H1_mouse2.bcr,
@@ -3786,7 +3205,7 @@ color_palette <- setNames(
   unique_isotypes
 )
 
-plotS13 <- ggplot(isotype_proportions, aes(x = group, y = proportion, fill = isotype)) +
+plot13 <- ggplot(isotype_proportions, aes(x = group, y = proportion, fill = isotype)) +
   geom_col(position = "stack", width = 0.7) +
   scale_fill_manual(values = color_palette, name = "Isotype") +
   scale_y_continuous(labels = scales::percent_format(), expand = c(0, 0)) +
@@ -3803,9 +3222,7 @@ plotS13 <- ggplot(isotype_proportions, aes(x = group, y = proportion, fill = iso
     legend.text = element_text(size = 12)
   )
 
-print(plotS13)
-ggsave("./results/FigureS13.pdf", plot = plotS13, width = 7, height = 7, device = "pdf")
-ggsave("./results/FigureS13.png", plot = plotS13, width = 7, height = 7, dpi = 300, device = "png")
+print(plot13)
 
 #####Figure4b Shannon's Entropy -------------------
 
@@ -3892,17 +3309,11 @@ plot4b<- plot4b + theme_minimal(base_size = 16, base_family = "Arial") +
     plot.title = element_text(hjust = 0.5, size = 20, face = "bold", family = "Arial")
   )
 print(plot4b)
-ggsave("./results/Figure4b.pdf", plot = plot4b, width = 6, height = 5)
-ggsave("./results/Figure4b.png", plot = plot4b, width = 6, height = 5)
+ggsave("./results/Figure14.pdf", plot = plot4b, width = 6, height = 5)
+ggsave("./results/Figure14.png", plot = plot4b, width = 6, height = 5)
 
-#####Figure4c CDR3 clones share in H1 and H5 -------------------
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(forcats)
-library(ggalluvial)
-
-CDR3_AA_COLUMN <- "junction_10x_aa"          # CDR3 AA 
+#####CDR3 clones share in H1 and H5 -------------------
+AA_COLUMN <- "junction_10x_aa"          # CDR3 AA 
 SUBSET_COL     <- "B_cell_subpopulations"
 COND_LEVELS    <- c("flu_H1","flu_H5")       #  H1  H5 naive
 TOP_N          <- 10                          # CDR3 Other
@@ -3986,10 +3397,10 @@ plot4c <- ggplot(
 
 print(plot4c)
 
-ggsave("./results/Figure4c.pdf", plot = plot4c, width = 8, height = 5)
-ggsave("./results/Figure4c.png", plot = plot4c, width = 8, height = 5)
+ggsave("./results/Figure15.pdf", plot = plot4c, width = 8, height = 5)
+ggsave("./results/Figure15.png", plot = plot4c, width = 8, height = 5)
 
-#####Figure4d HCDR3 Length ------------------------------------------------
+#####HCDR3 Length ------------------------------------------------
 # --- Step 0: Install and load required R packages ---
 
 packages_to_install <- c("dplyr", "readr", "stringr", "ggplot2", "ggpubr", "purrr")
@@ -4025,7 +3436,6 @@ all_data <- bind_rows(list_of_samples, .id = "group")
 
 # HCDR3
 hcdr3_lengths <- all_data %>%
-  #  (locus == "IGH")
   filter(locus == "IGH") %>%
   select(group, cdr3_aa) %>%
   filter(!is.na(cdr3_aa) & cdr3_aa != "") %>%
@@ -4068,7 +3478,6 @@ plot4d <- ggplot(hcdr3_lengths, aes(x = group, y = hcdr3_length, fill = group)) 
   scale_fill_manual(values = color_palette) +
   
   # P
-  # method = "wilcox.test" ()  "t.test" ()
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",
                      label = "p.signif", #  *, **, ***
                      bracket.size = 0.6,
@@ -4094,10 +3503,10 @@ plot4d <- ggplot(hcdr3_lengths, aes(x = group, y = hcdr3_length, fill = group)) 
   )
 
 print(plot4d)
-ggsave("./results/Figure4d.pdf", plot = plot4d, width = 6, height = 5)
-ggsave("./results/Figure4d.png", plot = plot4d, width = 6, height = 5,dpi = 300)
+ggsave("./results/Figure16.pdf", plot = plot4d, width = 6, height = 5)
+ggsave("./results/Figure16.png", plot = plot4d, width = 6, height = 5,dpi = 300)
 
-#####FigureS14: 5 samples for HCDR3 Length-------
+#####5 samples for HCDR3 Length-------
 # ---  1: 5 ---
 
 files_to_process <- list(
@@ -4167,7 +3576,7 @@ color_palette <- c(
   "Flu_H5_Mouse" = "#D55E00"
 )
 
-plotS14 <- ggplot(hcdr3_lengths, aes(x = group, y = hcdr3_length, fill = group)) +
+plot14 <- ggplot(hcdr3_lengths, aes(x = group, y = hcdr3_length, fill = group)) +
   geom_violin(trim = FALSE, alpha = 0.8) +
   geom_boxplot(width = 0.15, fill = "white", outlier.shape = NA) +
   scale_fill_manual(values = color_palette) +
@@ -4198,11 +3607,9 @@ plotS14 <- ggplot(hcdr3_lengths, aes(x = group, y = hcdr3_length, fill = group))
     axis.ticks = element_line(linewidth = 0.8)
   )
 
-print(plotS14)
-ggsave("./results/FigureS14.pdf", plot = plotS14, width = 8, height = 7)
-ggsave("./results/FigureS14.png", plot = plotS14, width = 8, height = 7,dpi = 300)
+print(plot14)
 
-#####Figure4e LCDR3 Length ------------------------------------------------
+#####LCDR3 Length ------------------------------------------------
 
 # --- Step 0: Install and load required R packages ---
 
@@ -4242,8 +3649,6 @@ all_data <- bind_rows(list_of_samples, .id = "group")
 
 # LCDR3
 lcdr3_lengths <- all_data %>%
-  #  (locus == "IGH")
-  #filter(locus == "IGH") %>%
   select(group, light_cdr3_aa) %>%
   filter(!is.na(light_cdr3_aa) & light_cdr3_aa != "") %>%
   # HCDR3
@@ -4258,7 +3663,6 @@ message("HCDR3 length calculation complete.")
 print(head(lcdr3_lengths))
 print(sample_sizes)
 
-# ---  2.5: ()  ---
 message("\n----------------------------------------------------")
 message("--- Performing group-wise HCDR3 length significance test ---")
 message("----------------------------------------------------")
@@ -4292,7 +3696,6 @@ plot4e <- ggplot(lcdr3_lengths, aes(x = group, y = hcdr3_length, fill = group)) 
   scale_fill_manual(values = color_palette) +
   
   # P
-  # method = "wilcox.test" ()  "t.test" ()
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",
                      label = "p.signif", #  *, **, ***
                      bracket.size = 0.6,
@@ -4318,10 +3721,10 @@ plot4e <- ggplot(lcdr3_lengths, aes(x = group, y = hcdr3_length, fill = group)) 
   )
 
 print(plot4e)
-ggsave("./results/Figure4e.pdf", plot = plot4e, width = 6, height = 5)
-ggsave("./results/Figure4e.png", plot = plot4e, width = 6, height = 5,dpi = 300)
+ggsave("./results/Figure17.pdf", plot = plot4e, width = 6, height = 5)
+ggsave("./results/Figure17.png", plot = plot4e, width = 6, height = 5,dpi = 300)
 
-#####Figure4f H_SHM ----------------------
+#####H_SHM ----------------------
 # --- Step 0: Install and load required R packages ---
 
 packages_to_install <- c("dplyr", "readr", "stringr", "ggplot2", "ggpubr", "purrr", "scales")
@@ -4365,8 +3768,6 @@ if (!"MU_FREQ_HEAVY_TOTAL" %in% names(all_data)) {
 }
 
 shm_frequencies <- all_data %>%
-  #  (locus == "IGH")
-  #filter(locus == "IGH") %>%
   select(group, MU_FREQ_HEAVY_TOTAL) %>%
   filter(!is.na(MU_FREQ_HEAVY_TOTAL)) %>%
   mutate(shm_freq = as.numeric(MU_FREQ_HEAVY_TOTAL)) %>%
@@ -4412,13 +3813,10 @@ plot4f <- ggplot(shm_frequencies, aes(x = group, y = shm_freq_percent, fill = gr
 
 # R
 print(plot4f)
-ggsave("./results/Figure4f.pdf", plot = plot4f, width = 6, height = 5)
-ggsave("./results/Figure4f.png", plot = plot4f, width = 6, height = 5,dpi = 300)
-
-##### FigureS15 ----------
+ggsave("./results/Figure18.pdf", plot = plot4f, width = 6, height = 5)
+ggsave("./results/Figure18.png", plot = plot4f, width = 6, height = 5,dpi = 300)
 
 # --- Step 0: Install and load required R packages ---
-# ()
 packages_to_install <- c("dplyr", "readr", "stringr", "ggplot2", "ggpubr", "purrr", "scales")
 for (pkg in packages_to_install) {
   if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
@@ -4433,7 +3831,6 @@ flu_H5_mouse.bcr <- read_tsv(paste0(base_path, "fluH5_mouse.merge.final.bcr.shm.
 naive_mouse1.bcr <- read_tsv(paste0(base_path, "naive_mouse1.merge.final.bcr.shm.tsv"), col_types = cols(.default = "c"))
 naive_mouse2.bcr <- read_tsv(paste0(base_path, "naive_mouse2.merge.final.bcr.shm.tsv"), col_types = cols(.default = "c"))
 
-# ---  2: () 5 ---
 list_of_samples <- list(
   "Flu_H1_Mouse1" = flu_H1_mouse1.bcr,
   "Flu_H1_Mouse2" = flu_H1_mouse2.bcr,
@@ -4466,7 +3863,6 @@ shm_frequencies <- all_data %>%
 
 message("SHM frequency data processing complete.")
 
-# ---  4: ()  ggplot2  ggpubr 5 ---
 message("Starting violin plot...")
 
 my_comparisons <- list( 
@@ -4483,7 +3879,7 @@ color_palette <- c(
   "Flu_H5_Mouse" = "#D55E00"
 )
 
-plotS15 <- ggplot(shm_frequencies, aes(x = group, y = shm_freq_percent, fill = group)) +
+plot15 <- ggplot(shm_frequencies, aes(x = group, y = shm_freq_percent, fill = group)) +
   geom_violin(trim = FALSE, alpha = 0.8) +
   geom_boxplot(width = 0.15, fill = "white", outlier.shape = NA) +
   scale_fill_manual(values = color_palette) +
@@ -4506,11 +3902,9 @@ plotS15 <- ggplot(shm_frequencies, aes(x = group, y = shm_freq_percent, fill = g
     axis.ticks = element_line(linewidth = 0.8)
   )
 
-print(plotS15)
-ggsave("./results/FigureS15.pdf", plot = plotS15, width = 8, height = 7)
-ggsave("./results/FigureS15.png", plot = plotS15, width = 8, height = 7,dpi = 300)
+print(plot15)
 
-#####Figure4g L_SHM -----------------------
+#####L_SHM -----------------------
 
 base_path <- "./cell_reports/VDJ/annotation_results/light_shm_results/"
 flu_H1_mouse1.bcr.light <- read_tsv(paste0(base_path, "fluH1_mouse1_light_with_shm.tsv"), col_types = cols(.default = "c"))
@@ -4519,11 +3913,9 @@ flu_H5_mouse.bcr.light <- read_tsv(paste0(base_path, "fluH5_mouse_light_with_shm
 naive_mouse1.bcr.light <- read_tsv(paste0(base_path, "naive_mouse1_light_with_shm.tsv"), col_types = cols(.default = "c"))
 naive_mouse2.bcr.light <- read_tsv(paste0(base_path, "naive_mouse2_light_with_shm.tsv"), col_types = cols(.default = "c"))
 
-# 1.1 () R
 flu_H1_mouse.bcr.light <- bind_rows(flu_H1_mouse1.bcr.light, flu_H1_mouse2.bcr.light)
 naive_mouse.bcr.light <- bind_rows(naive_mouse1.bcr.light, naive_mouse2.bcr.light)
 
-# 1.2 () 3
 list_of_samples <- list(
   "Flu_H1" = flu_H1_mouse.bcr.light,
   "Flu_H5" = flu_H5_mouse.bcr.light,
@@ -4538,7 +3930,6 @@ if (!"MU_FREQ_LIGHT_TOTAL" %in% names(all_data)) {
   stop("Error: 'MU_FREQ_LIGHT_TOTAL' column not found in data.")
 }
 
-# 2.1 () 
 group_levels <- c("Naive", "Flu_H1", "Flu_H5")
 
 shm_frequencies <- all_data %>%
@@ -4550,17 +3941,14 @@ shm_frequencies <- all_data %>%
 
 message("SHM frequency data processing complete.")
 
-# ---  3: ()  ggplot2  ggpubr 3 ---
 message("Starting violin plot...")
 
-# 3.1 () 
 my_comparisons <- list( 
   c("Naive", "Flu_H1"), 
   c("Naive", "Flu_H5"),
   c("Flu_H1", "Flu_H5")
 )
 
-# 3.2 () 
 color_palette <- c(
   "Naive" = "#0072B2", 
   "Flu_H1" = "#E69F00", 
@@ -4591,10 +3979,8 @@ plot4g <- ggplot(shm_frequencies, aes(x = group, y = shm_freq_percent, fill = gr
   )
 
 print(plot4g)
-ggsave("./results/Figure4g.pdf", plot = plot4g, width = 6, height = 5)
-ggsave("./results/Figure4g.png", plot = plot4g, width = 6, height = 5,dpi = 300)
-
-##### FigureS16 ------------------
+ggsave("./results/Figure19.pdf", plot = plot4g, width = 6, height = 5)
+ggsave("./results/Figure19.png", plot = plot4g, width = 6, height = 5,dpi = 300)
 
 base_path <- "./cell_reports/VDJ/annotation_results/light_shm_results/"
 flu_H1_mouse1.bcr.light <- read_tsv(paste0(base_path, "fluH1_mouse1_light_with_shm.tsv"), col_types = cols(.default = "c"))
@@ -4626,7 +4012,6 @@ group_levels <- c("Naive_Mouse1", "Naive_Mouse2", "Flu_H1_Mouse1", "Flu_H1_Mouse
 
 shm_frequencies <- all_data %>%
   # locus
-  #filter(locus == "IGH") %>%
   select(group, MU_FREQ_LIGHT_TOTAL) %>%
   filter(!is.na(MU_FREQ_LIGHT_TOTAL)) %>%
   mutate(shm_freq = as.numeric(MU_FREQ_LIGHT_TOTAL)) %>%
@@ -4635,7 +4020,6 @@ shm_frequencies <- all_data %>%
 
 message("SHM frequency data processing complete.")
 
-# ---  4: ()  ggplot2  ggpubr 5 ---
 message("Starting violin plot...")
 
 my_comparisons <- list( 
@@ -4652,7 +4036,7 @@ color_palette <- c(
   "Flu_H5_Mouse" = "#D55E00"
 )
 
-plotS16 <- ggplot(shm_frequencies, aes(x = group, y = shm_freq_percent, fill = group)) +
+plot16 <- ggplot(shm_frequencies, aes(x = group, y = shm_freq_percent, fill = group)) +
   geom_violin(trim = FALSE, alpha = 0.8) +
   geom_boxplot(width = 0.15, fill = "white", outlier.shape = NA) +
   scale_fill_manual(values = color_palette) +
@@ -4675,11 +4059,8 @@ plotS16 <- ggplot(shm_frequencies, aes(x = group, y = shm_freq_percent, fill = g
     axis.ticks = element_line(linewidth = 0.8)
   )
 
-print(plotS16)
-ggsave("./results/FigureS16.pdf", plot = plotS16, width = 8, height = 7)
-ggsave("./results/FigureS16.png", plot = plotS16, width = 8, height = 7,dpi = 300)
+print(plot16)
 
-#####Figure4h------
 ## 0)  meta.data
 obj <- B_cell_subset_flu_mouse.integrated
 
@@ -4708,7 +4089,6 @@ table(h1_GC$SHM_group)
 Idents(h1_GC) <- "SHM_group"
 
 # RNA assay 
-# DefaultAssay(h1) <- "RNA"   #  integrated assay
 
 ## 4) high vs low
 deg_high_vs_low <- FindMarkers(
@@ -4786,10 +4166,10 @@ plot4h <- ggplot(df, aes(x = log2FC, y = negLog10)) +
            hjust = 1, vjust = -0.5, label = paste0(n_up, " UP"), fontface = 2)
 
 print(plot4h)
-ggsave("./results/Figure4h.pdf", plot = plot4h, width = 8, height = 7)
-ggsave("./results/Figure4h.png", plot = plot4h, width = 8, height = 7,dpi = 300)
+ggsave("./results/Figure20.pdf", plot = plot4h, width = 8, height = 7)
+ggsave("./results/Figure20.png", plot = plot4h, width = 8, height = 7,dpi = 300)
 
-##### Figure4i------
+
 h1_PB <- subset(
   obj,
   subset = grepl("^flu_H1", orig.ident)&
@@ -4803,7 +4183,6 @@ table(h1_PB$SHM_group)
 Idents(h1_PB) <- "SHM_group"
 
 # RNA assay 
-# DefaultAssay(h1) <- "RNA"   #  integrated assay
 
 ## 4) high vs low
 deg_high_vs_low <- FindMarkers(
@@ -4886,10 +4265,10 @@ plot4i <- ggplot(df, aes(x = log2FC, y = negLog10)) +
            hjust = 1, vjust = -0.5, label = paste0(n_up, " UP"), fontface = 2)
 
 print(plot4i)
-ggsave("./results/Figure4i.pdf", plot = plot4i, width = 8, height = 7)
-ggsave("./results/Figure4i.png", plot = plot4i, width = 8, height = 7,dpi = 300)
+ggsave("./results/Figure21.pdf", plot = plot4i, width = 8, height = 7)
+ggsave("./results/Figure21.png", plot = plot4i, width = 8, height = 7,dpi = 300)
 
-##### Figure4j------
+
 h5_GC <- subset(
   obj,
   subset = grepl("^flu_H5", orig.ident)&
@@ -4982,10 +4361,10 @@ plot4j <- ggplot(df, aes(x = log2FC, y = negLog10)) +
            hjust = 1, vjust = -0.5, label = paste0(n_up, " UP"), fontface = 2)
 
 print(plot4j)
-ggsave("./results/Figure4j.pdf", plot = plot4j, width = 8, height = 7)
-ggsave("./results/Figure4j.png", plot = plot4j, width = 8, height = 7,dpi = 300)
+ggsave("./results/Figure22.pdf", plot = plot4j, width = 8, height = 7)
+ggsave("./results/Figure22.png", plot = plot4j, width = 8, height = 7,dpi = 300)
 
-##### Figure4k------
+
 h5_PB <- subset(
   obj,
   subset = grepl("^flu_H5", orig.ident)&
@@ -5078,1911 +4457,5 @@ plot4k <- ggplot(df, aes(x = log2FC, y = negLog10)) +
            hjust = 1, vjust = -0.5, label = paste0(n_up, " UP"), fontface = 2)
 
 print(plot4k)
-ggsave("./results/Figure4k.pdf", plot = plot4k, width = 8, height = 7)
-ggsave("./results/Figure4k.png", plot = plot4k, width = 8, height = 7,dpi = 300)
-
-###Figure5 ------
-
-write.csv(md,'./results/md.csv',row.names = T)
-md1 <- md %>%
-  mutate(sequence_id = as.character(sequence_id)) %>%  filter(!is.na(sequence_id) & trimws(sequence_id) != "" & toupper(sequence_id) != "NA")
-md1 <- md1 %>%
-  mutate(v_call_10x = as.character(v_call_10x)) %>%  filter(!is.na(v_call_10x) & trimws(v_call_10x) != "" & toupper(v_call_10x) != "NA")
-write.csv(md1,'./results/md1.csv',row.names = T)
-write_tsv(md1,'./results/md1.tsv')
-
-#  conda/mamba  immcantation  R>=4.2 
-install.packages(c("tidyverse","ggplot2","ggtree","cowplot"))
-install.packages("alakazam")   # CRAN 
-install.packages("shazam")
-install.packages("dowser")     # CRAN 
-# SHM
-# install.packages("ggnewscale")
-
-library(alakazam)
-library(shazam)
-library(dowser)
-library(ggtree)
-library(cowplot)
-#R 
-igphyml_exec <- Sys.which("igphyml")
-if (igphyml_exec == "" || !file.exists(igphyml_exec)) {
-  # PATH
-  igphyml_exec <- "/usr/local/bin/igphyml"   # <- 
-}
-system2(igphyml_exec, args = "-h")
-#()
-# 1.1 
-db <- readr::read_tsv("./results/md1.tsv", progress = TRUE, show_col_types = FALSE)
-
-# 1.2  orig.ident 
-library(dplyr)
-library(stringr)
-
-db <- db %>%
-  mutate(
-    #  orig.ident 
-    specificity = case_when(
-      str_detect(orig.ident, "^flu[_-]?H1") ~ "flu_H1",
-      str_detect(orig.ident, "^flu[_-]?H5") ~ "flu_H5",
-      str_detect(orig.ident, "^naive")      ~ "naive",
-      TRUE ~ "other"
-    ),
-    
-    MU_pct = MU_FREQ_HEAVY_TOTAL * 100,
-    MU_bin = case_when(
-      is.na(MU_pct) ~ NA_character_,
-      MU_pct > 5    ~ ">5%",
-      MU_pct >= 2   ~ "2%-5%",
-      TRUE          ~ "<2%"
-    )
-  ) %>%
-  
-  filter(
-    !is.na(sequence_alignment),
-    !is.na(germline_alignment),
-    productive %in% c(TRUE, 1)
-  )
-write.csv(db,'./results/db.csv',row.names = T)
-
-#()
-# 1)  presence  clone_id 
-pres <- db %>%
-  filter(specificity %in% c("flu_H1","flu_H5","naive")) %>%
-  distinct(clone_id, specificity) %>%
-  mutate(present = 1L) %>%
-  pivot_wider(names_from = specificity, values_from = present, values_fill = 0L)
-
-# 2) 
-clones_h1_only    <- pres %>% filter(flu_H1==1, flu_H5==0, naive==0) %>% pull(clone_id)
-clones_h5_only    <- pres %>% filter(flu_H1==0, flu_H5==1, naive==0) %>% pull(clone_id)
-clones_naive_only <- pres %>% filter(flu_H1==0, flu_H5==0, naive==1) %>% pull(clone_id)
-
-# 3) H1–H5 
-#    3.1 H1==1 & H5==1  naive==0
-clones_h1h5_shared_strict   <- pres %>% filter(flu_H1==1, flu_H5==1, naive==0) %>% pull(clone_id)
-#    3.2  H1==1 & H5==1 naive
-clones_h1h5_shared_inclusive <- pres %>% filter(flu_H1==1, flu_H5==1) %>% pull(clone_id)
-
-lengths(list(
-  H1_only    = clones_h1_only,
-  H5_only    = clones_h5_only,
-  naive_only = clones_naive_only,
-  H1H5_shared_strict = clones_h1h5_shared_strict,
-  H1H5_shared_inclusive = clones_h1h5_shared_inclusive
-))
-
-# 4) filter: H1–H5 
-min_seqs_per_clone <- 5clone_sizes <- db %>% dplyr::count(clone_id, name="n")
-
-keep_by_size <- function(ids) {
-  tibble(clone_id = ids) %>% inner_join(clone_sizes, by="clone_id") %>%
-    filter(n >= min_seqs_per_clone) %>% pull(clone_id)
-}
-
-clones_h1_only    <- keep_by_size(clones_h1_only)
-clones_h5_only    <- keep_by_size(clones_h5_only)
-clones_naive_only <- keep_by_size(clones_naive_only)
-clones_h1h5_shared_strict    <- keep_by_size(clones_h1h5_shared_strict)
-clones_h1h5_shared_inclusive <- keep_by_size(clones_h1h5_shared_inclusive)
-
-#() formatClones()
-
-library(dplyr)
-library(stringr)
-
-keep_traits <- c("c_call","B_cell_subpopulations","specificity","MU_bin","MU_pct","orig.ident")
-keep_text   <- c("c_call","B_cell_subpopulations","specificity","MU_bin","orig.ident")
-
-format_for <- function(db, ids) {
-  db %>%
-    filter(clone_id %in% ids) %>%
-    # 1)  D  germline_alignment
-    mutate(germ_use = dplyr::coalesce(germline_alignment_d_mask, germline_alignment)) %>%
-    # 2)
-    mutate(germ_use = stringr::str_replace_all(stringr::str_to_upper(trimws(germ_use)), "-", ".")) %>%
-    # text_fields  character
-    mutate(across(all_of(keep_text), as.character)) %>%
-    dowser::formatClones(
-      seq        = "sequence_alignment",
-      germ       = "germ_use",        # <— 
-      clone      = "clone_id",
-      id         = "sequence_id",
-      v_call     = "v_call",
-      j_call     = "j_call",
-      junc_len   = "junction_length",
-      traits     = keep_traits,
-      text_fields= keep_text,
-      minseq     = 2,
-      collapse   = TRUE
-    )
-}
-
-clones_H1_only    <- format_for(db, clones_h1_only)
-clones_H5_only    <- format_for(db, clones_h5_only)
-clones_naive_only <- format_for(db, clones_naive_only)
-clones_H1H5_shared_strict    <- format_for(db, clones_h1h5_shared_strict)
-clones_H1H5_shared_inclusive <- format_for(db, clones_h1h5_shared_inclusive)
-
-#()  IgPhyML
-build_with_igphyml <- function(clones_tbl, title="", exec=igphyml_exec,
-                               locus="IGH", region="V", model="HLP19",
-                               nproc=parallel::detectCores()) {
-  if (nrow(clones_tbl) == 0) return(NULL)
-  dowser::getTrees(
-    clones_tbl,
-    build     = "igphyml",
-    exec      = exec,
-    locus     = locus,
-    region    = region,
-    model     = model,
-    reorient  = TRUE,    ref       = "Germline",
-    nproc     = nproc,
-    rm_temp   = TRUE,    collapse  = TRUE
-  )
-}
-
-trees_H1_only    <- build_with_igphyml(clones_H1_only,    "H1-specific")
-trees_H5_only    <- build_with_igphyml(clones_H5_only,    "H5-specific")
-#trees_naive_only <- build_with_igphyml(clones_naive_only, "naive-specific")
-#trees_H1H5_shared_strict    <- build_with_igphyml(clones_H1H5_shared_strict,    "H1–H5 shared (strict)")
-#trees_H1H5_shared_inclusive <- build_with_igphyml(clones_H1H5_shared_inclusive, "H1–H5 shared (inclusive)")
-
-#() plot
-
-suppressPackageStartupMessages({
-  library(ggplot2)
-  library(ggtree)
-  library(dplyr)
-  library(tidyr)
-  library(stringr)
-  library(forcats)
-  library(purrr)
-  library(tibble)
-  library(fs)
-})
-
-##  is.waive()
-if (!exists("is.waive", mode = "function")) {
-  is.waive <- function(x) inherits(x, "waiver")
-}
-
-isotype_pal <- c(
-  "IGHM"   = "#3333aa",
-  "IGHD"   = "#0072B2",
-  "IGHG1"  = "#E41A1C",
-  "IGHG2B" = "#8E24AA",
-  "IGHG2C" = "#FF7F0E",
-  "IGHG3"  = "#2ECC40",
-  "IGHA"   = "#FFD700",
-  "IGHE"   = "#A0522D",
-  "NA"     = "#BDBDBD"
-)
-
-##  SHM 
-mu_pal <- c(
-  "<2%"   = "#0055FF",
-  "2%-5%" = "#FFB000",
-  ">5%"   = "#CC0000"
-)
-
-# # 21-25 GC/BmemPBMZ
-shape_pal <- c(GC=21, PB=24, Bmem=21, MZ=22)
-
-alignment_len_for_tree <- function(tr, db) {
-  seqs <- db %>% filter(sequence_id %in% tr$tip.label) %>% pull(sequence_alignment)
-  s <- seqs[!is.na(seqs)][1]
-  if (length(s) == 0 || is.na(s)) return(NA_integer_)
-  nchar(gsub("[\\.-]", "", s))
-}
-
-# # tip  cell_id  tip_label
-# # tip  cell_id  tip_label
-tip_anno_for_tree <- function(tr, db){
-  tips <- tr$tip.label
-  
-  ##  clone
-  cid <- db %>% 
-    dplyr::filter(sequence_id %in% tips) %>%
-    dplyr::count(clone_id, sort = TRUE) %>% 
-    dplyr::slice_head(n = 1) %>% 
-    dplyr::pull(clone_id)
-  
-  ## alignment cell_id  -> 
-  exp_tbl <- db %>% 
-    dplyr::filter(clone_id == cid) %>%
-    dplyr::group_by(sequence_alignment) %>%
-    dplyr::summarise(exp_n = dplyr::n_distinct(cell_id), .groups = "drop")
-  
-  # # ——  sequence_id= label join
-  anno <- db %>% 
-    dplyr::filter(sequence_id %in% tips) %>%
-    dplyr::group_by(sequence_id) %>%
-    dplyr::summarise(
-      c_call = dplyr::first(c_call),
-      B_cell_subpopulations = dplyr::first(B_cell_subpopulations),
-      MU_bin = dplyr::first(MU_bin),
-      MU_pct = dplyr::first(MU_pct),
-      sequence_alignment = dplyr::first(sequence_alignment),
-      cell_id = dplyr::first(cell_id),
-      .groups = "drop"
-    ) %>%
-    dplyr::left_join(exp_tbl, by = "sequence_alignment") %>%
-    dplyr::mutate(
-      exp_n = ifelse(is.na(exp_n), 1L, exp_n),
-      B_cell_subpopulations = forcats::fct_drop(
-        factor(B_cell_subpopulations, levels = c("GC","PB","Bmem","MZ"))
-      ),
-      label = as.character(sequence_id),
-      c_call = as.character(c_call),
-      MU_bin = factor(as.character(MU_bin),
-                      levels = c("<2%","2%-5%",">5%"), ordered = TRUE),
-      tip_label = dplyr::coalesce(as.character(cell_id), as.character(sequence_id))
-    )
-  
-  return(anno)
-}
-
-## 
-lineage_plot <- function(
-    tr, title = NULL, db,
-    show_tiplab = FALSE,
-    show_branch_numbers = TRUE,
-    show_tip_numbers = FALSE,
-    branch_scale = 1,
-    branch_transform = c("none","sqrt","log1p"),
-    tree_layout = c("rectangular","slanted")){
-  branch_transform <- match.arg(branch_transform)
-  tree_layout <- match.arg(tree_layout)
-  
-  stopifnot(inherits(tr, "phylo"))
-  has_len <- !is.null(tr$edge.length) && length(tr$edge.length) > 0
-  
-  ## —— / edge.length
-  if (has_len) {
-    el <- tr$edge.length
-    if (branch_transform == "sqrt")  el <- sqrt(pmax(el, 0))
-    if (branch_transform == "log1p") el <- log1p(pmax(el, 0))
-    if (is.numeric(branch_scale) && branch_scale != 1) el <- el * branch_scale
-    tr$edge.length <- el
-  }
-  
-  anno <- tip_anno_for_tree(tr, db)
-  alnL <- alignment_len_for_tree(tr, db)
-  
-  # # ——
-  p <- ggtree(
-    tr,
-    ladderize = TRUE,
-    layout = tree_layout,
-    branch.length = if (has_len) "branch.length" else "none"
-  ) +
-    theme_tree2() +
-    ggtitle(ifelse(is.null(title), "", title))
-  
-  # # ——  node  join
-  p$data <- p$data %>%
-    dplyr::left_join(anno %>% dplyr::distinct(label, .keep_all = TRUE), by = "label") %>%
-    dplyr::group_by(node) %>% dplyr::slice_head(n = 1) %>% dplyr::ungroup()
-  
-  # # tips=isotype=SHM==
-  p <- p + ggtree::geom_point2(
-    ggplot2::aes(subset = isTip, size = exp_n, shape = B_cell_subpopulations,
-                 fill = c_call, colour = MU_bin),
-    stroke = 1.1, na.rm = TRUE
-  ) +
-    scale_fill_manual(values = isotype_pal, name = "Isotype", na.translate = FALSE) +
-    scale_colour_manual(values = mu_pal,    name = "SHM",     na.translate = FALSE) +
-    scale_shape_manual(
-      values = shape_pal,
-      breaks = levels(stats::na.omit(anno$B_cell_subpopulations)),
-      drop   = TRUE, na.translate = FALSE,
-      name   = "B cell subpop"
-    ) +
-    scale_size_area(name = "Expansion (cells)", max_size = 7) +
-    guides(
-      fill   = guide_legend(override.aes = list(shape = 21, size = 4, colour = "grey40")),
-      colour = guide_legend(override.aes = list(shape = 21, size = 4, fill = NA)),
-      shape  = guide_legend(override.aes = list(size = 4))
-    )
-  
-  # ## —— tip  node 
-  # if (isTRUE(show_tip_numbers)) {
-  #   p <- p + ggtree::geom_text2(
-  #     ggplot2::aes(subset = isTip, label = .data$node),
-  #     size = 5, fontface = "bold", colour = "black",
-  #     vjust = 0.5, hjust = 0.5, check_overlap = TRUE
-  #   )
-  # }
-  
-  ## 
-  p <- p + ggtree::geom_point2(
-    data = function(df) dplyr::filter(df, label %in% c("Germline","Germline_IGH")),
-    ggplot2::aes(x = x, y = y), shape = 21, fill = "black", colour = "black", size = 3
-  )
-  
-  if (isTRUE(show_tiplab)) p <- p + ggtree::geom_tiplab(size = 2.8)
-  
-  ##  branch.length × alignment_len
-  if (isTRUE(show_branch_numbers) && has_len && is.finite(alnL)) {
-    td <- ggtree::fortify(tr) %>%
-      dplyr::mutate(
-        mut_n = ifelse(is.na(branch.length), NA_real_,
-                       round(branch.length * alnL, 0))
-      )
-    p <- p + ggplot2::geom_text(
-      data = td,
-      ggplot2::aes(x = x, y = y, label = ifelse(is.na(mut_n), "", mut_n)),
-      size = 3.5, vjust = -0.35, hjust = -0.1, colour = "grey30",
-      inherit.aes = FALSE
-    )
-  }
-  
-  ##  + 
-  p <- p + ggplot2::coord_flip() + ggplot2::scale_x_reverse() +
-    ggplot2::theme(axis.line  = element_blank(),
-                   axis.text  = element_blank(),
-                   axis.ticks = element_blank(),
-                   axis.title = element_blank())
-  
-  return(p)
-}
-
-extract_phylo_col <- function(airr_tbl) {
-  if (is.null(airr_tbl) || nrow(airr_tbl) == 0) return(tibble())
-  if (!"trees" %in% names(airr_tbl))
-    stop("This airrTrees object has no 'trees' column, please use str(trees_*) to check actual column names.")
-  tibble(
-    clone_id = airr_tbl$clone_id,
-    tree     = purrr::map(airr_tbl$trees, function(z){
-      if (is.list(z) && "tree" %in% names(z) && inherits(z$tree, "phylo")) return(z$tree)
-      if (inherits(z, "phylo")) return(z)
-      NULL
-    })
-  ) %>% filter(!purrr::map_lgl(tree, is.null))
-}
-
-tH1 <- extract_phylo_col(trees_H1_only) %>% mutate(group = "H1")
-tH5 <- extract_phylo_col(trees_H5_only) %>% mutate(group = "H5")
-all_trees_df <- bind_rows(tH1, tH5)
-
-clone_meta <- db %>%
-  filter(specificity %in% c("flu_H1","flu_H5")) %>%
-  count(clone_id, specificity, name = "n") %>%
-  mutate(group = recode(specificity, flu_H1 = "H1", flu_H5 = "H5")) %>%
-  select(clone_id, group, n)
-
-df <- all_trees_df %>% left_join(clone_meta, by = c("clone_id","group"))
-
-outdir <- "./results/lineage_by_group1"
-fs::dir_create(outdir, recurse = TRUE)
-
-make_group_pdf <- function(df_group, grp,
-                           show_tiplab = FALSE,
-                           show_branch_numbers = TRUE,
-                           show_tip_numbers = FALSE,
-                           branch_scale = 1,
-                           branch_transform = c("none","sqrt","log1p")) {
-  
-  sub <- df_group %>% filter(group == grp) %>% arrange(desc(n))
-  if (nrow(sub) == 0) { message(" ", grp, " has no trees"); return(invisible(NULL)) }
-  
-  outfile <- file.path(outdir, sprintf("%s_sorted_by_size.pdf", grp))
-  pdf(outfile, width = 7.5, height = 10, onefile = TRUE)
-  on.exit(dev.off(), add = TRUE)
-  
-  for (i in seq_len(nrow(sub))) {
-    cid  <- sub$clone_id[i]
-    size <- sub$n[i]
-    tr   <- sub$tree[[i]]
-    ttl  <- if (!is.na(size)) sprintf("%s | clone %s (n=%d)", grp, cid, size)
-    else sprintf("%s | clone %s", grp, cid)
-    
-    p <- lineage_plot(
-      tr, title = ttl, db = db,
-      show_tiplab = show_tiplab,
-      show_branch_numbers = show_branch_numbers,
-      show_tip_numbers = show_tip_numbers,
-      branch_scale = branch_scale,
-      branch_transform = branch_transform
-    )
-    print(p)
-  }
-  message("✅ Writing: ", outfile)
-}
-
-# #  0.7  branch_scale=0.7
-make_group_pdf(df, "H1",
-               show_tiplab = FALSE, show_branch_numbers = TRUE, show_tip_numbers = FALSE,
-               branch_scale = 0.5, branch_transform = "none")
-make_group_pdf(df, "H5",
-               show_tiplab = FALSE, show_branch_numbers = TRUE, show_tip_numbers = FALSE,
-               branch_scale = 0.5, branch_transform = "none")
-
-###Figure6 ------
-# data filter
-db_igh <- db %>%
-  filter(locus == "IGH", productive == TRUE) %>%
-  mutate(across(c(clone_id, cell_id, c_call,
-                  sequence_alignment, germline_alignment, germline_alignment_d_mask),
-                ~ as.character(.)))
-
-#  umi_count 
-db_igh <- db_igh %>%
-  group_by(specificity, clone_id, cell_id) %>%
-  slice_max(order_by = coalesce(umi_count, 1), n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-# clone
-db_igh <- db_igh %>%
-  mutate(subclone_id = interaction(clone_id, germline_alignment_d_mask, drop = TRUE))
-
-# ID 
-db_igh <- db_igh %>% filter(!is.na(sequence_id) & sequence_id != "NA")
-
-library(dplyr)
-library(tidyr)
-
-db_igh_dedup_bc_clone <- db_igh %>%
-  arrange(desc(umi_count), desc(consensus_count)) %>%
-  group_by(barcode_seurat, clone_id) %>%
-  dplyr::slice(1) %>%         # ←  dplyr::slice
-  ungroup()
-
-head(db_igh_dedup_bc_clone)
-library(dplyr)
-bad <- db_igh_dedup_bc_clone %>%
-  filter(locus == "IGH", productive) %>%
-  mutate(across(c(clone_id, sequence_alignment, germline_alignment,
-                  germline_alignment_d_mask), as.character)) %>%
-  group_by(clone_id) %>%
-  summarise(
-    n_germ_mask = n_distinct(germline_alignment_d_mask),
-    n_germ      = n_distinct(germline_alignment),
-    .groups = "drop") %>%
-  filter(n_germ_mask > 1 | n_germ > 1)
-nrow(bad)      #  clone 
-head(bad, 10)
-library(dplyr)
-
-db_igh_fix <- db_igh_dedup_bc_clone %>%
-  filter(locus == "IGH", productive) %>%
-  mutate(across(c(clone_id, germline_alignment, germline_alignment_d_mask), as.character)) %>%
-  # clone_id × D- clone
-  mutate(clone_id = interaction(clone_id, germline_alignment_d_mask, drop = TRUE)) %>%
-  #  D BuildTrees 
-  mutate(germline_alignment = germline_alignment_d_mask)
-
-#  clone 
-db_igh_fix %>%
-  group_by(clone_id) %>%
-  summarise(n_germ = n_distinct(germline_alignment), .groups = "drop") %>%
-  summarise(all(n_germ == 1))
-#  TRUE
-
-db_igh_fix <- db_igh_fix %>%
-  mutate(
-    # +ID
-    db_short = str_trunc(paste0(barcode_seurat, "_", clone_id), 40, ellipsis = "")
-  )
-
-names(db_igh_fix)[names(db_igh_fix)=="sequence_id"]   <- "SEQUENCE_ID"
-names(db_igh_fix)[names(db_igh_fix)=="barcode_seurat"]<- "CELL_ID"readr::write_tsv(db_igh_fix, "db_igh_fix.tsv")
-
-write_tsv(db_igh_fix,'./results/db_igh_fix.tsv')
-
-##### Figure6a Clonotype counts------
-suppressPackageStartupMessages({
-  library(dplyr)
-  library(stringr)
-  library(ggplot2)
-  library(ggvenn)   # install.packages("ggvenn")
-})
-
-# ——  CDR3/*
-canon_cdr3 <- function(x){
-  x %>% as.character() %>% str_trim() %>% str_replace("\\*+$","") %>% toupper()
-}
-
-stopifnot(all(c("specificity","cdr3_aa") %in% names(db_igh_fix)))
-
-db_igh_fix <- db_igh_fix %>%
-  mutate(
-    specificity   = case_when(
-      str_to_lower(specificity) == "naive"  ~ "naive",
-      str_to_lower(specificity) == "flu_h1" ~ "flu_H1",
-      str_to_lower(specificity) == "flu_h5" ~ "flu_H5",
-      TRUE ~ specificity
-    ),
-    cdr3_aa = canon_cdr3(cdr3_aa)
-  )
-
-# 1)  CDR3
-naive_clones  <- db_igh_fix %>% filter(specificity == "naive")  %>% distinct(cdr3_aa) %>% pull(cdr3_aa)
-flu_h1_clones <- db_igh_fix %>% filter(specificity == "flu_H1") %>% distinct(cdr3_aa) %>% pull(cdr3_aa)
-flu_h5_clones <- db_igh_fix %>% filter(specificity == "flu_H5") %>% distinct(cdr3_aa) %>% pull(cdr3_aa)
-
-# 2)  CDR3 
-cat("Naive :",  length(naive_clones),  "\n")
-cat("Flu_H1 group clone count:", length(flu_h1_clones), "\n")
-cat("Flu_H5 group clone count:", length(flu_h5_clones), "\n")
-
-# 3)  Venn
-venn_list <- list(Naive = naive_clones, Flu_H1 = flu_h1_clones, Flu_H5 = flu_h5_clones)
-
-plot6a <- ggvenn(
-  venn_list,
-  fill_color    = c("#0073C2FF", "#EFC000FF", "#CD534CFF"),
-  stroke_size   = 0.6,
-  set_name_size = 6,  text_size     = 6,  show_percentage = FALSE
-) +
-  labs(title = "Clonotype counts (Unique CDR3 AA)") +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 18, family = "Arial",face = "bold"),
-    text = element_text(family = "Arial", face = "bold")
-  )
-
-print(plot6a)
-ggsave("./results/Figure6a.pdf",
-       plot = plot6a, width = 6, height = 6)
-ggsave("./results/Figure6a.png",
-       plot = plot6a, width = 6, height = 6, dpi = 300)
-
-##### Figure6b Clone counts------
-suppressPackageStartupMessages({
-  library(dplyr); library(stringr); library(tidyr); library(ggplot2)
-})
-
-# ---- 1)  CDR3
-A <- "naive"; B <- "flu_H1"; C <- "flu_H5"
-
-canon_cdr3 <- function(x) x |> as.character() |> str_trim() |> str_replace("\\*+$","") |> toupper()
-
-stopifnot(all(c("specificity","cdr3_aa") %in% names(db_igh_fix)))
-dat <- db_igh_fix %>%
-  mutate(
-    specificity   = case_when(
-      str_to_lower(specificity) == "naive"  ~ A,
-      str_to_lower(specificity) == "flu_h1" ~ B,
-      str_to_lower(specificity) == "flu_h5" ~ C,
-      TRUE ~ specificity
-    ),
-    cdr3_aa = canon_cdr3(cdr3_aa)
-  ) %>%
-  filter(specificity %in% c(A,B,C), !is.na(cdr3_aa), nzchar(cdr3_aa))
-
-present_tbl <- dat %>%
-  distinct(specificity, cdr3_aa) %>%
-  pivot_wider(names_from = specificity, values_from = specificity, values_fn = length, values_fill = 0) %>%
-  mutate(
-    !!A := as.integer(.data[[A]] > 0),
-    !!B := as.integer(.data[[B]] > 0),
-    !!C := as.integer(.data[[C]] > 0),
-    pattern = case_when(
-      .data[[A]]==1 & .data[[B]]==0 & .data[[C]]==0 ~ "A",
-      .data[[A]]==0 & .data[[B]]==1 & .data[[C]]==0 ~ "B",
-      .data[[A]]==0 & .data[[B]]==0 & .data[[C]]==1 ~ "C",
-      .data[[A]]==1 & .data[[B]]==1 & .data[[C]]==0 ~ "AB",
-      .data[[A]]==1 & .data[[B]]==0 & .data[[C]]==1 ~ "AC",
-      .data[[A]]==0 & .data[[B]]==1 & .data[[C]]==1 ~ "BC",
-      .data[[A]]==1 & .data[[B]]==1 & .data[[C]]==1 ~ "ABC",
-      TRUE ~ "OTHER"
-    )
-  ) %>% select(cdr3_aa, pattern)
-
-dat_with_pattern <- dat %>% left_join(present_tbl, by = "cdr3_aa")
-
-region_counts <- dat_with_pattern %>%
-  filter(pattern %in% c("A","B","C","AB","AC","BC","ABC")) %>%
-  count(pattern, name = "count") %>%
-  complete(pattern = c("A","B","C","AB","AC","BC","ABC"), fill = list(count = 0)) %>%
-  arrange(factor(pattern, levels = c("A","B","C","AB","AC","BC","ABC")))
-
-# ---- 2)  ggplot2
-r <- 1.0
-pos <- tibble::tibble(
-  set = c("A","B","C"),
-  x0  = c(-0.55, 1.05, 0.00),
-  y0  = c( 0.00, 0.00, -1.15)
-)
-
-circle_df <- function(x0, y0, r, n = 361){
-  t <- seq(0, 2*pi, length.out = n)
-  data.frame(x = x0 + r*cos(t), y = y0 + r*sin(t))
-}
-poly_A <- circle_df(pos$x0[pos$set=="A"], pos$y0[pos$set=="A"], r)
-poly_B <- circle_df(pos$x0[pos$set=="B"], pos$y0[pos$set=="B"], r)
-poly_C <- circle_df(pos$x0[pos$set=="C"], pos$y0[pos$set=="C"], r)
-
-# --- 
-cx <- setNames(pos$x0, pos$set)
-cy <- setNames(pos$y0, pos$set)
-
-# --- 
-cx <- setNames(pos$x0, pos$set)
-cy <- setNames(pos$y0, pos$set)
-
-base_lab_pos <- tibble::tibble(
-  pattern = c("A","B","C","AB","AC","BC","ABC"),
-  x = c(
-    cx["A"] - 0.35*r,                   # A-only
-    cx["B"] + 0.35*r,                   # B-only
-    cx["C"],                            # C-only
-    (cx["A"]+cx["B"])/2,                # AB
-    (cx["A"]+cx["C"])/2 - 0.05,         # AC
-    (cx["B"]+cx["C"])/2 + 0.05,         # BC
-    (cx["A"]+cx["B"]+cx["C"])/3         # ABC
-  ),
-  y = c(
-    cy["A"],                            # A-only
-    cy["B"],                            # B-only
-    cy["C"] + 0.55*r,                   # C-only
-    (cy["A"]+cy["B"])/2 + 0.12,         # AB
-    (cy["A"]+cy["C"])/2 - 0.12,         # AC
-    (cy["B"]+cy["C"])/2 - 0.12,         # BC
-    (cy["A"]+cy["B"]+cy["C"])/3 - 0.10  # ABC
-  )
-)
-
-# --- ---
-# H5  6294  AB  21  AC  70 ……
-offsets <- tibble::tibble(
-  pattern = c("C",  "AB",  "AC", "BC", "A", "B", "ABC"),
-  dx      = c( 0.00, 0.10, 0.08, 0.00, 0.00, 0.00, 0.10),
-  dy      = c( -0.58, 0.04, 0.00, 0.02, 0.00, 0.00, 0.15)
-)
-#  0
-offsets <- offsets %>% tidyr::complete(pattern = c("A","B","C","AB","AC","BC","ABC"),
-                                       fill = list(dx=0, dy=0))
-
-# ---  +  ---
-lab_pos <- base_lab_pos %>%
-  dplyr::left_join(offsets, by = "pattern") %>%
-  dplyr::mutate(x = x + dx, y = y + dy) %>%
-  dplyr::left_join(region_counts, by = "pattern")
-
-plot6b <- ggplot() +
-  geom_polygon(data = poly_A, aes(x, y), fill = "#77AADD", alpha = 0.65, color = "black") +
-  geom_polygon(data = poly_B, aes(x, y), fill = "#EFC000", alpha = 0.65, color = "black") +
-  geom_polygon(data = poly_C, aes(x, y), fill = "#CD534C", alpha = 0.65, color = "black") +
-  geom_text(data = lab_pos, aes(x, y, label = count), size = 6) +
-  geom_text(data = label_out, aes(x, y, label = lab), fontface = "bold", size = 6) +
-  coord_fixed(
-    xlim = c(min(pos$x0) - r - 0.2, max(pos$x0) + r + 0.2),
-    ylim = c(min(pos$y0) - r - 0.3, max(pos$y0) + r + 0.4),
-    clip = "off"
-  ) +
-  theme_void() +
-  ggtitle("Clone counts (Unique CDR3 AA)") +
-  theme(plot.title = element_text(hjust = 0.5, size = 18, face = "bold"))
-
-print(plot6b)
-
-ggsave("./results/Figure6b.pdf", plot6b, width = 6, height = 6)
-ggsave("./results/Figure6b.png", plot6b, width = 6, height = 6, dpi = 300)
-
-##### Figure6c clone expansion------
-library(dplyr)
-library(stringr)
-library(forcats)
-library(tidyr)
-library(ggplot2)
-library(packcircles)library(purrr)
-library(ggrepel)
-library(scales)
-----------
-# Flu_H1  Flu_H5 
-flu_h1_h5_shared_clones <- intersect(flu_h1_clones, flu_h5_clones)
-length(flu_h1_h5_shared_clones)
-head(flu_h1_h5_shared_clones)
-
-flu_h1_h5_shared_clones_df <- db_igh_fix %>%
-  filter(cdr3_aa %in% flu_h1_h5_shared_clones, specificity %in% c("flu_H1", "flu_H5"))
-write.csv(shared_df, "./results/flu_h1_h5_shared_clones.csv")
-
-# flu_h1
-#  flu_H1 
-unique_flu_h1 <- setdiff(flu_h1_clones, union(flu_h5_clones, naive_clones))
-length(unique_flu_h1)
-head(unique_flu_h1)
-unique_flu_h1_df <- db_igh_fix %>%
-  filter(specificity == "flu_H1", cdr3_aa %in% unique_flu_h1)
-head(unique_flu_h1_df)
-write.csv(unique_flu_h1_df, "./results/unique_flu_h1_df_clones.csv")
-#
-library(dplyr)
-# 1)  flu_H1  flu_H5  naive 
-unique_flu_h1 <- setdiff(flu_h1_clones, union(flu_h5_clones, naive_clones))
-
-# 2)  flu_H1 10
-top10_flu_h1_expansion <- as.data.frame(db_igh_fix) %>%
-  filter(specificity == "flu_H1",
-         !is.na(cdr3_aa),
-         cdr3_aa %in% unique_flu_h1) %>%
-  group_by(cdr3_aa) %>%
-  summarise(clone_size = n(), .groups = "drop") %>%
-  arrange(desc(clone_size)) %>%
-  slice_head(n = 10)
-print(top10_flu_h1_expansion)
-
-# 3)  Top10  flu_H1
-top10_flu_h1_df <- db_igh_fix %>%
-  filter(specificity == "flu_H1",
-         cdr3_aa %in% top10_flu_h1_expansion$cdr3_aa)
-
-head(top10_flu_h1_df)
-unique_flu_h1_df <- db_igh_fix %>%
-  filter(cdr3_aa %in% unique_flu_h1)
-write.csv(unique_flu_h1_df, "./results/unique_flu_h1.csv")
-
-# flu_h5
-unique_flu_h5 <- setdiff(flu_h5_clones, union(flu_h1_clones, naive_clones))
-length(unique_flu_h5)
-head(unique_flu_h5)
-unique_flu_h5 <- db_igh_fix %>%
-  filter(specificity == "flu_H5", cdr3_aa %in% unique_flu_h5)
-head(unique_flu_h5)
-write.csv(unique_flu_h5, "./results/unique_flu_h5_df_clones.csv")
-library(dplyr)
-
-# 1)  flu_H1  flu_H5  naive 
-unique_flu_h5 <- setdiff(flu_h5_clones, union(flu_h1_clones, naive_clones))
-
-# 2)  flu_H1 10
-top10_flu_h5_expansion <- as.data.frame(db_igh_fix) %>%
-  filter(specificity == "flu_H5",
-         !is.na(cdr3_aa),
-         cdr3_aa %in% unique_flu_h5) %>%
-  group_by(cdr3_aa) %>%
-  summarise(clone_size = n(), .groups = "drop") %>%
-  arrange(desc(clone_size)) %>%
-  slice_head(n = 10)
-
-print(top10_flu_h5_expansion)
-unique_flu_h5_df <- db_igh_fix %>%
-  filter(cdr3_aa %in% unique_flu_h5)
-
-write.csv(unique_flu_h5_df, "./results/unique_flu_h5.csv")
-
-path_shared <- "./results/flu_h1_h5_shared_clones.csv"
-path_h1_unique <- "./results/unique_flu_h1.csv"
-path_h5_unique <- "./results/unique_flu_h5.csv"
-
-df_shared <- read.csv(path_shared)    %>% mutate(clone_origin = "Shared")
-df_h1     <- read.csv(path_h1_unique) %>% mutate(clone_origin = "Unique Flu_H1")
-df_h5     <- read.csv(path_h5_unique) %>% mutate(clone_origin = "Unique Flu_H5")
-df_all <- bind_rows(df_shared, df_h1, df_h5) %>% mutate(cell_id_unique = row_number())
-
-df_use <- df_all %>%
-  filter(!is.na(clone_id)) %>%
-  mutate(
-    isotype = str_extract(c_call %||% "", "IGH[AMG]") %>%
-      fct_explicit_na(na_level = "Other") %>%
-      fct_collapse(IGHA = "IGHA", IGHG = "IGHG", IGHM = "IGHM", Other = "Other"),
-    cell_type = as.factor(B_cell_subpopulations),
-    shm_bin = case_when(
-      is.na(MU_FREQ_HEAVY_TOTAL) ~ "<2%",
-      MU_FREQ_HEAVY_TOTAL < 0.02 ~ "<2%",
-      MU_FREQ_HEAVY_TOTAL < 0.05 ~ "2–5%",
-      TRUE                       ~ ">5%"
-    ),
-    clone_origin = factor(clone_origin,
-                          levels = c("Shared","Unique Flu_H1","Unique Flu_H5")),
-    cell_id_unique = if ("cell_id_unique" %in% names(.)) cell_id_unique else row_number()
-  ) %>%
-  select(clone_id, cell_id_unique, isotype, cell_type, shm_bin, clone_origin, v_call_10x) %>%
-  mutate(v_call_10x = as.character(v_call_10x))
-
-stopifnot(nrow(df_use) > 0)
-
-base_r   <- 0.6edge_gap <- 0.92
-# —— ——
-df_all <- df_all %>%
-  mutate(
-    clone_id       = as.character(clone_id),
-    cell_id_unique = if ("cell_id_unique" %in% names(.)) as.character(cell_id_unique) else as.character(row_number())
-  )
-
-make_layout_one_facet <- function(df_facet, base_r = 0.6, edge_gap = 0.92) {
-  df_facet <- as_tibble(df_facet) %>% mutate(clone_id = as.character(clone_id))
-  
-  sizes <- df_facet %>%
-    dplyr::count(clone_id, name = "n") %>%
-    mutate(r = base_r * sqrt(pmax(n, 3)))
-  
-  pack <- packcircles::circleProgressiveLayout(sizes$r)
-  centers <- bind_cols(sizes, as_tibble(pack)) %>%
-    transmute(clone_id, n, r, cx = x, cy = y)
-  
-  cells <- df_facet %>%
-    left_join(centers, by = "clone_id") %>%
-    group_by(clone_id) %>%
-    mutate(
-      idx   = row_number(),
-      theta = 2*pi*(idx-1)/n,
-      rad   = r * edge_gap,
-      x     = cx + rad * cos(theta),
-      y     = cy + rad * sin(theta),
-      x0    = cx, y0 = cy
-    ) %>% ungroup()
-  
-  centers_nodes <- centers %>% transmute(clone_id, x0 = cx, y0 = cy, r)
-  list(cells = cells, centers = centers_nodes)
-}
-
-split_dfs <- split(df_use, df_use$clone_origin, drop = TRUE)
-for (nm in c("Shared","Unique Flu_H1","Unique Flu_H5")) {
-  if (!nm %in% names(split_dfs)) split_dfs[[nm]] <- df_use[0,]
-}
-split_dfs <- split_dfs[c("Shared","Unique Flu_H1","Unique Flu_H5")]
-
-layouts <- imap(split_dfs, ~{
-  lay <- make_layout_one_facet(.x, base_r = base_r, edge_gap = edge_gap)
-  lay$cells$facet   <- .y
-  lay$centers$facet <- .y
-  lay
-})
-
-cells_xy   <- bind_rows(map(layouts, "cells"))
-centers_xy <- bind_rows(map(layouts, "centers"))
-
-if (!all(c("x0","y0") %in% names(cells_xy))) {
-  cells_xy <- cells_xy %>%
-    left_join(centers_xy %>% select(facet, clone_id, x0, y0), by = c("facet","clone_id"))
-}
-cells_xy <- cells_xy %>%
-  group_by(facet, clone_id) %>%
-  mutate(
-    x0 = ifelse(is.na(x0), mean(x, na.rm = TRUE), x0),
-    y0 = ifelse(is.na(y0), mean(y, na.rm = TRUE), y0)
-  ) %>% ungroup()
-
-# facet
-cells_xy   <- cells_xy   %>% dplyr::mutate(facet = dplyr::recode(as.character(facet),
-                                                                 "Shared" = "Flu_H1_H5_shared"))
-centers_xy <- centers_xy %>% dplyr::mutate(facet = dplyr::recode(as.character(facet),
-                                                                 "Shared" = "Flu_H1_H5_shared"))
-
-# 3)  + 
-
-# A)  H1 / Shared 
-inter_clone_scale <- c(
-  "Unique Flu_H5"    = 1.05,
-  "Unique Flu_H1"    = 1.65,
-  "Flu_H1_H5_shared" = 1.95   # 1.80 20
-)
-
-# B) 
-intra_scale <- c(
-  "Unique Flu_H5"    = 0.98,
-  "Unique Flu_H1"    = 0.92,
-  "Flu_H1_H5_shared" = 0.95
-)
-
-# ——  r_pack n=1  r95=0  ——
-r_floor_frac <- 0.8
-r_min_abs    <- 0.4
-pad          <- 1.10
-
-sizes_floor <- centers_xy %>%
-  dplyr::transmute(facet = as.character(facet),
-                   clone_id, r_floor = pmax(r * r_floor_frac, r_min_abs))
-
-clone_radii <- cells_xy %>%
-  dplyr::mutate(facet = as.character(facet)) %>%
-  dplyr::group_by(facet, clone_id) %>%
-  dplyr::summarise(
-    r95 = as.numeric(stats::quantile(sqrt((x - x0)^2 + (y - y0)^2), 0.95, na.rm = TRUE)),
-    cx  = mean(x0, na.rm = TRUE),
-    cy  = mean(y0, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  dplyr::left_join(sizes_floor, by = c("facet","clone_id")) %>%
-  dplyr::mutate(
-    r_eff  = pmax(coalesce(r95, 0), coalesce(r_floor, r_min_abs)),
-    scale_ = coalesce(as.numeric(inter_clone_scale[facet]), 1),   # ★  NA
-    r_pack = pmax(r_eff * pad * scale_, 1e-6)
-  )
-
-repack_facet <- function(fct_name) {
-  rd <- dplyr::filter(clone_radii, facet == fct_name)
-  if (!nrow(rd)) return(invisible(NULL))
-  pk <- packcircles::circleProgressiveLayout(rd$r_pack)
-  offsets <- rd %>%
-    dplyr::mutate(dx = pk$x - cx, dy = pk$y - cy) %>%
-    dplyr::select(facet, clone_id, dx, dy)
-  
-  # /
-  cells_xy  <<- cells_xy %>%
-    dplyr::left_join(offsets, by = c("facet","clone_id")) %>%
-    dplyr::mutate(
-      x  = ifelse(facet == fct_name, x  + coalesce(dx,0), x),
-      y  = ifelse(facet == fct_name, y  + coalesce(dy,0), y),
-      x0 = ifelse(facet == fct_name, x0 + coalesce(dx,0), x0),
-      y0 = ifelse(facet == fct_name, y0 + coalesce(dy,0), y0)
-    ) %>% dplyr::select(-dx, -dy)
-  
-  centers_xy <<- centers_xy %>%
-    dplyr::left_join(offsets, by = c("facet","clone_id")) %>%
-    dplyr::mutate(
-      x0 = ifelse(facet == fct_name, x0 + coalesce(dx,0), x0),
-      y0 = ifelse(facet == fct_name, y0 + coalesce(dy,0), y0)
-    ) %>% dplyr::select(-dx, -dy)
-  
-  invisible(NULL)
-}
-for (fct in names(inter_clone_scale)) repack_facet(fct)
-
-cells_xy <- cells_xy %>%
-  dplyr::mutate(facet = as.character(facet)) %>%
-  dplyr::group_by(facet, clone_id) %>%
-  dplyr::mutate(
-    s = coalesce(as.numeric(intra_scale[facet]), 1),
-    x = x0 + (x - x0) * s,
-    y = y0 + (y - y0) * s
-  ) %>% dplyr::ungroup() %>% dplyr::select(-s)
-
-## 3.3  R_target
-# H5 H1/Shared
-group_sparsity <- c(
-  "Unique Flu_H5"    = 1.00,  "Unique Flu_H1"    = 1.80,   # → 
-  "Flu_H1_H5_shared" = 10.00    # → 
-)
-
-centers_stats <- centers_xy %>%
-  dplyr::group_by(facet) %>%
-  dplyr::summarise(
-    n_clones = dplyr::n_distinct(clone_id),
-    cx_bar   = mean(x0), cy_bar = mean(y0),
-    R_now    = sqrt(max((x0 - cx_bar)^2 + (y0 - cy_bar)^2, na.rm = TRUE)),
-    .groups  = "drop"
-  ) %>%
-  dplyr::filter(is.finite(R_now))
-
-if (nrow(centers_stats)) {
-  #  H5 
-  k_const <- (centers_stats %>% dplyr::filter(facet == "Unique Flu_H5"))$R_now /
-    sqrt((centers_stats %>% dplyr::filter(facet == "Unique Flu_H5"))$n_clones + 1e-9)
-  
-  centers_stats <- centers_stats %>%
-    dplyr::mutate(
-      gscale   = dplyr::coalesce(as.numeric(group_sparsity[facet]), 1),
-      R_target = k_const * sqrt(n_clones) * gscale,   # ★ 
-      s_between = dplyr::if_else(R_now > 0, R_target / R_now, 1)
-    )
-  
-  # 3.1
-  cells_xy <- cells_xy %>%
-    dplyr::left_join(centers_stats, by = "facet") %>%
-    dplyr::mutate(
-      x  = cx_bar + (x  - cx_bar) * s_between,
-      y  = cy_bar + (y  - cy_bar) * s_between,
-      x0 = cx_bar + (x0 - cx_bar) * s_between,
-      y0 = cy_bar + (y0 - cy_bar) * s_between
-    ) %>%
-    dplyr::select(-cx_bar, -cy_bar, -R_now, -R_target, -s_between, -n_clones, -gscale)
-  
-  centers_xy <- centers_xy %>%
-    dplyr::left_join(centers_stats, by = "facet") %>%
-    dplyr::mutate(
-      x0 = cx_bar + (x0 - cx_bar) * s_between,
-      y0 = cy_bar + (y0 - cy_bar) * s_between
-    ) %>%
-    dplyr::select(-cx_bar, -cy_bar, -R_now, -R_target, -s_between, -n_clones, -gscale)
-}
-
-# 4)  Origin  Subtype/Isotype/Mutation
-
-pal_origin <- c("Flu_H1_H5_shared" = "#F6C343", "Unique Flu_H1" = "#2C7BE5", "Unique Flu_H5" = "#E63757")
-pal_ct     <- c("MZ"="#3A8EBA","GC"="#E69F00","PB"="#D55E00","Bmem"="#009E73")
-shape_iso  <- c(IGHA=23, IGHG=22, IGHM=21, Other=25)
-size_mut   <- c("<2%"=2.0, "2–5%"=3.0, ">5%"=4.0)
-
-cells_xy   <- cells_xy   %>% dplyr::mutate(facet = dplyr::recode(as.character(facet), "Shared"="Flu_H1_H5_shared"))
-centers_xy <- centers_xy %>% dplyr::mutate(facet = dplyr::recode(as.character(facet), "Shared"="Flu_H1_H5_shared"))
-
-cells_xy <- cells_xy %>%
-  dplyr::filter(as.character(cell_type) %in% names(pal_ct)) %>%
-  dplyr::mutate(
-    facet     = factor(facet, levels = c("Unique Flu_H5","Unique Flu_H1","Flu_H1_H5_shared")),
-    cell_type = factor(as.character(cell_type), levels = names(pal_ct)),
-    isotype   = factor(as.character(isotype),   levels = names(shape_iso)),
-    shm_bin   = factor(as.character(shm_bin),   levels = names(size_mut))
-  )
-
-# —— -> 15  ——
-set.seed(1)
-edges_lines <- cells_xy %>%
-  dplyr::group_by(facet, clone_id) %>%
-  dplyr::mutate(major_ct = names(sort(table(na.omit(cell_type)), decreasing = TRUE))[1]) %>%
-  dplyr::filter(as.character(cell_type) == major_ct) %>%
-  dplyr::mutate(.rand = runif(dplyr::n())) %>%
-  dplyr::slice_min(order_by = .rand, n = 15, with_ties = FALSE) %>%
-  dplyr::ungroup()
-
-# —— >20 v_call_10x ——
-# ——  n  v_call_10x  —— 
-clone_counts <- df_use %>%
-  dplyr::mutate(facet = dplyr::recode(as.character(clone_origin),
-                                      "Shared" = "Flu_H1_H5_shared")) %>%
-  dplyr::group_by(facet, clone_id) %>%
-  dplyr::summarise(
-    n = dplyr::n(),
-    v_top = {
-      vt <- stats::na.omit(v_call_10x)
-      if (length(vt)) names(sort(table(vt), decreasing = TRUE))[1] else NA_character_
-    },
-    .groups = "drop"
-  )
-
-# 1) H5  > 20—— V 
-label_min_H5 <- 25
-lab_H5 <- clone_counts %>%
-  dplyr::filter(facet == "Unique Flu_H5", n > label_min_H5) %>%
-  dplyr::left_join(centers_xy %>% dplyr::select(facet, clone_id, x0, y0),
-                   by = c("facet","clone_id")) %>%
-  dplyr::mutate(label = v_top) %>%
-  dplyr::filter(is.finite(x0), is.finite(y0))
-
-## H1 > 20 
-lab_h1 <- clone_counts %>%
-  dplyr::filter(facet == "Unique Flu_H1", n > 10) %>%
-  dplyr::left_join(centers_xy %>% dplyr::select(facet, clone_id, x0, y0),
-                   by = c("facet","clone_id")) %>%
-  dplyr::mutate(label = v_top) %>%
-  dplyr::filter(is.finite(x0), is.finite(y0))
-
-## Shared Top 4
-lab_shared_top4 <- clone_counts %>%
-  dplyr::filter(facet == "Flu_H1_H5_shared") %>%
-  dplyr::arrange(dplyr::desc(n)) %>%
-  dplyr::slice_head(n = 4) %>%      # ←  top 
-  dplyr::left_join(centers_xy %>% dplyr::select(facet, clone_id, x0, y0),
-                   by = c("facet","clone_id")) %>%
-  dplyr::mutate(label = v_top) %>%
-  dplyr::filter(is.finite(x0), is.finite(y0))
-
-## 
-lab_all <- dplyr::bind_rows(lab_H5, lab_h1, lab_shared_top4)
-
-# --------
-draw_panel <- function(facet_name,
-                       title = facet_name,
-                       title_size = 20,
-                       title_bpad = 2,
-                       pad_left  = 0.02,   #  padding 
-                       pad_right = 0.02,
-                       pad_top   = 0.005,  # ↑  padding  = 
-                       pad_bottom= 0.03) { # ↓  padding 
-  dat_cells <- dplyr::filter(cells_xy, facet == facet_name)
-  
-  if (nrow(dat_cells) == 0) {
-    XLIM <- c(-1, 1); YLIM <- c(-1, 1)
-  } else {
-    xr <- range(dat_cells$x, na.rm = TRUE)
-    yr <- range(dat_cells$y, na.rm = TRUE)
-    dx <- diff(xr); dy <- diff(yr)
-    if (!is.finite(dx) || dx == 0) dx <- 1
-    if (!is.finite(dy) || dy == 0) dy <- 1
-    XLIM <- c(xr[1] - dx*pad_left,  xr[2] + dx*pad_right)
-    YLIM <- c(yr[1] - dy*pad_bottom, yr[2] + dy*pad_top)  # ←  padding
-  }
-  
-  ggplot() +
-    geom_segment(
-      data = dplyr::filter(edges_lines, facet == facet_name),
-      aes(x = x0, y = y0, xend = x, yend = y),
-      color = scales::alpha("grey55", 0.45), linewidth = 0.22, show.legend = FALSE
-    ) +
-    geom_point(
-      data = dat_cells,
-      aes(x = x, y = y, fill = cell_type, color = facet, shape = isotype, size = shm_bin),
-      stroke = 0.55, alpha = 0.95
-    ) +
-    ggrepel::geom_text_repel(
-      data = dplyr::filter(lab_all, facet == facet_name),
-      aes(x = x0, y = y0, label = label),
-      color = "black", fontface = "bold", size = 5,
-      min.segment.length = 0, segment.color = "grey60",
-      box.padding = 0.25, point.padding = 0.2,
-      max.overlaps = Inf, seed = 1, show.legend = FALSE
-    ) +
-    scale_color_manual(values = pal_origin, name = "Origin (border)", drop = FALSE) +
-    scale_fill_manual(values  = pal_ct,     name = "B cell subtype", drop = FALSE) +
-    scale_shape_manual(values  = shape_iso, name = "Isotype") +
-    scale_size_manual(values   = size_mut,  name = expression(V[H]~"mutation")) +
-    coord_fixed(xlim = XLIM, ylim = YLIM, clip = "on") +
-    theme_void(base_size = 12) +
-    ggtitle(title) +
-    theme(
-      plot.title = element_text(face = "bold", size = title_size, hjust = 0.5,
-                                margin = margin(b = title_bpad)),
-      plot.title.position = "panel",
-      legend.position = "none",
-      plot.margin = margin(t = 2, r = 6, b = 6, l = 6)
-    )
-}
-
-# H5 H1 Shared
-p_h5 <- draw_panel("Unique Flu_H5",  "Unique Flu_H5",
-                   title_size = 20, title_bpad = 1,
-                   pad_top = 0.001, pad_bottom = 0.03)
-
-p_h1 <- draw_panel("Unique Flu_H1",  "Unique Flu_H1",
-                   title_size = 20, title_bpad = 2,
-                   pad_top = 0.012, pad_bottom = 0.03)
-
-p_sh <- draw_panel("Flu_H1_H5_shared","Flu_H1_H5_shared",
-                   title_size = 20, title_bpad = 2,
-                   pad_top = 0.010, pad_bottom = 0.05)
-
-# --------  & 
-pal_ct <- c("MZ"="#3A8EBA","GC"="#E69F00","PB"="#D55E00","Bmem"="#009E73")
-
-cells_xy <- cells_xy %>%
-  dplyr::mutate(cell_type = as.character(cell_type)) %>%
-  dplyr::mutate(
-    cell_type = dplyr::case_when(
-      cell_type %in% c("MZ","marginal zone","Marginal zone") ~ "MZ",
-      cell_type %in% c("GC","germinal center","Germinal center") ~ "GC",
-      cell_type %in% c("PB","Plasmablast","plasmablast") ~ "PB",
-      cell_type %in% c("Bmem","Memory B cell","B memory","memory B") ~ "Bmem",
-      TRUE ~ NA_character_
-    )
-  ) %>%
-  dplyr::filter(!is.na(cell_type)) %>%
-  dplyr::mutate(cell_type = factor(cell_type, levels = names(pal_ct)))
-# ---  ---
-legend_plot <- ggplot() +
-  # 1) Origin
-  geom_point(
-    data = dplyr::distinct(cells_xy, facet),
-    aes(x = 1, y = 1, color = facet),
-    shape = 21, fill = NA, size = 4, stroke = 1.1
-  ) +
-  # 2) VH mutation
-  geom_point(
-    data = data.frame(shm_bin = factor(names(size_mut), levels = names(size_mut))),
-    aes(x = 2, y = 1, size = shm_bin),
-    shape = 19, color = "black"
-  ) +
-  # 3) Isotype
-  geom_point(
-    data = data.frame(isotype = factor(names(shape_iso), levels = names(shape_iso))),
-    aes(x = 3, y = 1, shape = isotype),
-    size = 4, color = "grey20"
-  ) +
-  # 4) B cell subtype color
-  geom_point(
-    data = data.frame(cell_type = factor(names(pal_ct), levels = names(pal_ct))),
-    aes(x = 4, y = 1, fill = cell_type),
-    shape = 21, color = "grey30", size = 4, stroke = 0.8
-  ) +
-  scale_color_manual(values = pal_origin, name = "Origin (border)", drop = FALSE) +
-  scale_fill_manual(values  = pal_ct,     name = "B cell subtype",  drop = FALSE) +
-  scale_shape_manual(values  = shape_iso,  name = "Isotype") +
-  scale_size_manual(values   = size_mut,   name = expression(V[H]~"mutation")) +
-  guides(
-    color = guide_legend(override.aes = list(fill = NA), order = 1),
-    size  = guide_legend(override.aes = list(shape = 19, color = "black"), order = 2),
-    shape = guide_legend(order = 3),
-    fill  = guide_legend(override.aes = list(shape = 21, colour = "grey30", size = 4), order = 4)
-  ) +
-  theme_void(base_size = 14) +
-  theme(
-    legend.position = "right",
-    legend.direction = "vertical",
-    legend.box = "vertical",
-    legend.title = element_text(size = 14, face = "bold"),
-    legend.text  = element_text(size = 13),
-    legend.key.size = unit(0.9, "cm"),
-    legend.margin = margin(t = 6, r = 8, b = 6, l = 6)
-  )
-
-legend_grob <- cowplot::get_legend(legend_plot)
-
-# -------- 
-right_col  <- cowplot::plot_grid(p_h1, p_sh, ncol = 1, align = "v", rel_heights = c(1.5, 0.5))
-tri_layout <- cowplot::plot_grid(p_h5, right_col, ncol = 2, align = "h", rel_widths = c(1.55, 1))
-
-plot6c <- cowplot::plot_grid(tri_layout, legend_grob, ncol = 2, rel_widths = c(1, 0.20))
-print(plot6c)
-
-ggsave("./results/Figure6c.pdf", plot = plot6c, width = 20, height = 11)
-ggsave("./results/Figure6c.png", plot = plot6c, width = 20, height = 11,dpi = 300)
-
-######Figure6d------
-library(dplyr)
-library(stringr)
-library(ggplot2)
-library(tidyr)
-library(scales)
-
-# === Read data ===
-flu_H1 <- read.csv("./results/unique_flu_h1_df_clones.csv",
-                   check.names = TRUE, stringsAsFactors = FALSE)
-
-# ===  ===
-clean_aa <- function(x){
-  x <- toupper(x)
-  x <- str_replace_all(x, "\\*", "")
-  x <- str_replace_all(x, "[^ACDEFGHIKLMNPQRSTVWY-]", "")
-  x
-}
-
-heavy_col <- "junction_10x_aa"
-light_col <- "light_junction_10x_aa"
-stopifnot(all(c(heavy_col, light_col) %in% names(flu_H1)))
-
-df_len <- flu_H1 %>%
-  transmute(
-    Heavy = nchar(clean_aa(.data[[heavy_col]])),
-    Light = nchar(clean_aa(.data[[light_col]]))
-  ) %>%
-  pivot_longer(everything(), names_to = "Chain", values_to = "Length") %>%
-  filter(!is.na(Length), Length > 0)
-
-# ===  ===
-means <- df_len %>%
-  group_by(Chain) %>%
-  summarise(mean_len = mean(Length, na.rm = TRUE), .groups = "drop")
-
-# ===  ===
-means <- means %>%
-  mutate(
-    y_pos = ifelse(Chain == "Heavy", 0.32, 0.26)  )
-
-# ===  ===
-col_map  <- c("Heavy" = "#1f77b4", "Light" = "grey40")
-fill_map <- c("Heavy" = "#1f77b4", "Light" = "grey60")
-
-# ===  ===
-x_min <- min(df_len$Length, na.rm = TRUE)
-x_max <- max(df_len$Length, na.rm = TRUE)
-x_pad <- max(0.1 * (x_max - x_min), 0.5)
-x_limits <- c(x_min - x_pad, x_max + x_pad)
-
-# ===  ===
-p <- ggplot(df_len, aes(x = Length, fill = Chain, color = Chain)) +
-  geom_histogram(aes(y = after_stat(count / sum(count))),
-                 binwidth = 1, position = "identity",
-                 alpha = 0.35, linewidth = 0.3) +
-  geom_vline(data = means, aes(xintercept = mean_len, color = Chain),
-             linetype = "dotted", linewidth = 0.9, show.legend = FALSE) +
-  geom_text(data = means,
-            aes(x = mean_len, y = y_pos,
-                label = paste0("Mean: ", round(mean_len, 1)),
-                color = Chain),
-            hjust = -0.1, size = 6, fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = col_map, name = "Chain type",
-                     labels = c("Heavy chain", "Light chain")) +
-  scale_fill_manual(values  = fill_map, name = "Chain type",
-                    labels = c("Heavy chain", "Light chain")) +
-  coord_cartesian(xlim = x_limits, ylim = c(0, NA)) +
-  labs(x = "CDR3 length (AA)", y = "Proportion",
-       title = "flu_H1: CDR3 length histogram") +
-  scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  theme_classic(base_size = 18) +
-  theme(
-    legend.position = "top",
-    legend.title = element_text(face = "bold", size = 16),
-    legend.text = element_text(size = 16),
-    plot.title = element_text(hjust = 0.5, face = "bold")
-  )
-
-print(p)
-
-out_dir <- "./results/Figure6"
-png_path <- file.path(out_dir, "flu_H1_CDR3_length_histogram_meanAdjusted.png")
-pdf_path <- file.path(out_dir, "flu_H1_CDR3_length_histogram_meanAdjusted.pdf")
-
-ggsave(png_path, p, width = 6, height = 5, dpi = 300)
-ggsave(pdf_path, p, width = 6, height = 5)
-
-# === cdr3 character ===
-library(dplyr)
-library(stringr)
-library(ggseqlogo)
-library(ggplot2)
-
-# ===  ===
-clean_aa <- function(x) {
-  x <- toupper(x)
-  x <- str_replace_all(x, "\\*", "")
-  x <- str_replace_all(x, "[^ACDEFGHIKLMNPQRSTVWY-]", "")
-  x
-}
-anchor_two_ends <- function(v, right_anchor = "[FW]") {
-  if (length(v) == 0) return(character(0))
-  v <- as.character(v)
-  lp <- regexpr("C", v, perl = TRUE); lp[lp < 0] <- 1L
-  rp <- sapply(v, function(s) {
-    hits <- gregexpr(right_anchor, s, perl = TRUE)[[1]]
-    if (all(hits < 0)) nchar(s) else max(hits)
-  })
-  left_part  <- mapply(substr, v, 1, lp, USE.NAMES = FALSE)
-  mid_part   <- mapply(function(s, l, r)
-    if (r - l - 1 <= 0) "" else substr(s, l + 1, r - 1),
-    v, lp, rp, USE.NAMES = FALSE)
-  right_part <- mapply(substr, v, rp, nchar(v), USE.NAMES = FALSE)
-  max_mid <- max(nchar(mid_part))
-  mapply(function(lf, mid, rt)
-    paste0(lf, mid, strrep("-", max_mid - nchar(mid)), rt),
-    left_part, mid_part, right_part, USE.NAMES = FALSE)
-}
-trim_sparse_cols <- function(seqs, min_non_gap_prop = 0.1) {
-  if (length(seqs) == 0) return(seqs)
-  L <- max(nchar(seqs))
-  mat <- sapply(seqs, function(s) strsplit(sprintf("%-*s", L, s), "")[[1]])
-  mat[mat == " "] <- "-"
-  keep <- apply(mat, 1, function(col) mean(col != "-")) >= min_non_gap_prop
-  if (!any(keep)) return(seqs)
-  seqs_trim <- apply(mat[keep, , drop = FALSE], 2, paste0, collapse = "")
-  unname(seqs_trim)
-}
-pad_right <- function(v) {
-  if (length(v) == 0) return(character(0))
-  stringr::str_pad(v, max(nchar(v)), side = "right", pad = "-")
-}
-
-stopifnot(all(c("junction_10x_aa", "clone_id") %in% names(flu_H1)))
-has_light <- "light_junction_10x_aa" %in% names(flu_H1)
-
-flu_H1_clean <- flu_H1 %>%
-  transmute(
-    clone_id = clone_id,
-    cdr3_h   = clean_aa(junction_10x_aa),
-    len_h    = nchar(cdr3_h),
-    cdr3_l   = if (has_light) clean_aa(light_junction_10x_aa) else NA_character_,
-    len_l    = if (has_light) nchar(cdr3_l) else NA_integer_
-  ) %>%
-  filter(!is.na(cdr3_h), len_h > 0)
-
-length_stats <- flu_H1_clean %>%
-  group_by(len_h) %>%
-  summarise(n_clones = n_distinct(clone_id), n_seq = n(), .groups = "drop") %>%
-  arrange(len_h)
-print(length_stats)
-
-clone_per_len <- flu_H1_clean %>%
-  group_by(len_h, clone_id) %>%
-  summarise(n_seq = n(), .groups = "drop") %>%
-  arrange(len_h, desc(n_seq))
-print(clone_per_len)
-
-target_len_h <- 20
-out_dir <- "./results/Figure6"
-
-seqs_h <- flu_H1_clean %>%
-  filter(len_h == target_len_h) %>%
-  pull(cdr3_h) %>%
-  unique()
-
-aligned_h <- seqs_h %>%
-  anchor_two_ends("[FW]") %>%
-  trim_sparse_cols(0.1) %>%
-  pad_right()
-
-if (length(aligned_h) > 0) {
-  p_heavy <- ggseqlogo(aligned_h, seq_type = "aa", method = "prob", col_scheme = "chemistry") +
-    labs(title = paste0("flu_H1 - Heavy CDR3 (length ", target_len_h, ")"),
-         x = "Position", y = "Probability") +
-    theme_bw()+
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),      axis.title.x = element_text(size = 18, face = "bold"),             # X
-      axis.title.y = element_text(size = 18, face = "bold"),             # Y
-      axis.text.x = element_text(size = 14, face = "bold"),              # X
-      axis.text.y = element_text(size = 14, face = "bold"),              # Y
-      legend.title = element_text(size = 16, face = "bold"),      legend.text = element_text(size = 14),      strip.text = element_text(size = 16, face = "bold")    )
-  print(p_heavy)
-  
-  output_path_png <- file.path(out_dir, paste0("flu_H1_HeavyCDR3_len", target_len_h, ".png"))
-  output_path_pdf <- file.path(out_dir, paste0("flu_H1_HeavyCDR3_len", target_len_h, ".pdf"))
-  ggsave(output_path_png, p_heavy, width = 11, height = 4.5, dpi = 300)
-  ggsave(output_path_pdf, p_heavy, width = 11, height = 4.5)
-}
-
-if (has_light) {
-  seqs_l_all <- flu_H1_clean %>%
-    filter(len_h == target_len_h, !is.na(cdr3_l), len_l > 0) %>%
-    pull(cdr3_l) %>%
-    unique()
-  
-  aligned_l_all <- seqs_l_all %>%
-    anchor_two_ends("[FW]") %>%
-    trim_sparse_cols(0.1) %>%
-    pad_right()
-  
-  if (length(aligned_l_all) > 0) {
-    p_light_all <- ggseqlogo(aligned_l_all, seq_type = "aa", method = "prob", col_scheme = "chemistry") +
-      labs(title = paste0("flu_H1 - Light CDR3 (all lengths; heavy=", target_len_h, ")"),
-           x = "Position", y = "Probability") +
-      theme_bw()+
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),        axis.title.x = element_text(size = 18, face = "bold"),             # X
-        axis.title.y = element_text(size = 18, face = "bold"),             # Y
-        axis.text.x = element_text(size = 14, face = "bold"),              # X
-        axis.text.y = element_text(size = 14, face = "bold"),              # Y
-        legend.title = element_text(size = 16, face = "bold"),        legend.text = element_text(size = 14),        strip.text = element_text(size = 16, face = "bold")      )
-    print(p_light_all)
-    
-    output_path_png <- file.path(out_dir, paste0("flu_H1_LightCDR3_allLen_withHeavy", target_len_h, ".png"))
-    output_path_pdf <- file.path(out_dir, paste0("flu_H1_LightCDR3_allLen_withHeavy", target_len_h, ".pdf"))
-    ggsave(output_path_png, p_light_all, width = 11, height = 4.5, dpi = 300)
-    ggsave(output_path_pdf, p_light_all, width = 11, height = 4.5)
-  }
-}
-######Figure6e------
-library(dplyr)
-library(stringr)
-library(ggplot2)
-library(tidyr)
-library(scales)
-
-# === Read data ===
-flu_H5 <- read.csv("./results/unique_flu_H5_df_clones.csv",
-                   check.names = TRUE, stringsAsFactors = FALSE)
-
-# ===  ===
-clean_aa <- function(x){
-  x <- toupper(x)
-  x <- str_replace_all(x, "\\*", "")
-  x <- str_replace_all(x, "[^ACDEFGHIKLMNPQRSTVWY-]", "")
-  x
-}
-
-heavy_col <- "junction_10x_aa"
-light_col <- "light_junction_10x_aa"
-stopifnot(all(c(heavy_col, light_col) %in% names(flu_H5)))
-
-df_len <- flu_H5 %>%
-  transmute(
-    Heavy = nchar(clean_aa(.data[[heavy_col]])),
-    Light = nchar(clean_aa(.data[[light_col]]))
-  ) %>%
-  pivot_longer(everything(), names_to = "Chain", values_to = "Length") %>%
-  filter(!is.na(Length), Length > 0)
-
-# ===  ===
-means <- df_len %>%
-  group_by(Chain) %>%
-  summarise(mean_len = mean(Length, na.rm = TRUE), .groups = "drop")
-
-# ===  ===
-means <- means %>%
-  mutate(
-    y_pos = ifelse(Chain == "Heavy", 0.32, 0.26)  )
-
-# ===  ===
-col_map  <- c("Heavy" = "#1f77b4", "Light" = "grey40")
-fill_map <- c("Heavy" = "#1f77b4", "Light" = "grey60")
-
-# ===  ===
-x_min <- min(df_len$Length, na.rm = TRUE)
-x_max <- max(df_len$Length, na.rm = TRUE)
-x_pad <- max(0.1 * (x_max - x_min), 0.5)
-x_limits <- c(x_min - x_pad, x_max + x_pad)
-
-# ===  ===
-p <- ggplot(df_len, aes(x = Length, fill = Chain, color = Chain)) +
-  geom_histogram(aes(y = after_stat(count / sum(count))),
-                 binwidth = 1, position = "identity",
-                 alpha = 0.35, linewidth = 0.3) +
-  geom_vline(data = means, aes(xintercept = mean_len, color = Chain),
-             linetype = "dotted", linewidth = 0.9, show.legend = FALSE) +
-  geom_text(data = means,
-            aes(x = mean_len, y = y_pos,
-                label = paste0("Mean: ", round(mean_len, 1)),
-                color = Chain),
-            hjust = -0.1, size = 6, fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = col_map, name = "Chain type",
-                     labels = c("Heavy chain", "Light chain")) +
-  scale_fill_manual(values  = fill_map, name = "Chain type",
-                    labels = c("Heavy chain", "Light chain")) +
-  coord_cartesian(xlim = x_limits, ylim = c(0, NA)) +
-  labs(x = "CDR3 length (AA)", y = "Proportion",
-       title = "flu_H5: CDR3 length histogram") +
-  scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  theme_classic(base_size = 18) +
-  theme(
-    legend.position = "top",
-    legend.title = element_text(face = "bold", size = 16),
-    legend.text = element_text(size = 16),
-    plot.title = element_text(hjust = 0.5, face = "bold")
-  )
-
-print(p)
-
-# ===  ===
-out_dir <- "./results/Figure6"
-png_path <- file.path(out_dir, "flu_H5_CDR3_length_histogram_meanAdjusted.png")
-pdf_path <- file.path(out_dir, "flu_H5_CDR3_length_histogram_meanAdjusted.pdf")
-
-ggsave(png_path, p, width = 6, height = 5, dpi = 300)
-ggsave(pdf_path, p, width = 6, height = 5)
-
-library(dplyr)
-library(stringr)
-library(ggseqlogo)
-library(ggplot2)
-
-# ===  ===
-clean_aa <- function(x) {
-  x <- toupper(x)
-  x <- str_replace_all(x, "\\*", "")
-  x <- str_replace_all(x, "[^ACDEFGHIKLMNPQRSTVWY-]", "")
-  x
-}
-anchor_two_ends <- function(v, right_anchor = "[FW]") {
-  if (length(v) == 0) return(character(0))
-  v <- as.character(v)
-  lp <- regexpr("C", v, perl = TRUE); lp[lp < 0] <- 1L
-  rp <- sapply(v, function(s) {
-    hits <- gregexpr(right_anchor, s, perl = TRUE)[[1]]
-    if (all(hits < 0)) nchar(s) else max(hits)
-  })
-  left_part  <- mapply(substr, v, 1, lp, USE.NAMES = FALSE)
-  mid_part   <- mapply(function(s, l, r)
-    if (r - l - 1 <= 0) "" else substr(s, l + 1, r - 1),
-    v, lp, rp, USE.NAMES = FALSE)
-  right_part <- mapply(substr, v, rp, nchar(v), USE.NAMES = FALSE)
-  max_mid <- max(nchar(mid_part))
-  mapply(function(lf, mid, rt)
-    paste0(lf, mid, strrep("-", max_mid - nchar(mid)), rt),
-    left_part, mid_part, right_part, USE.NAMES = FALSE)
-}
-trim_sparse_cols <- function(seqs, min_non_gap_prop = 0.1) {
-  if (length(seqs) == 0) return(seqs)
-  L <- max(nchar(seqs))
-  mat <- sapply(seqs, function(s) strsplit(sprintf("%-*s", L, s), "")[[1]])
-  mat[mat == " "] <- "-"
-  keep <- apply(mat, 1, function(col) mean(col != "-")) >= min_non_gap_prop
-  if (!any(keep)) return(seqs)
-  seqs_trim <- apply(mat[keep, , drop = FALSE], 2, paste0, collapse = "")
-  unname(seqs_trim)
-}
-pad_right <- function(v) {
-  if (length(v) == 0) return(character(0))
-  stringr::str_pad(v, max(nchar(v)), side = "right", pad = "-")
-}
-
-# ===  ===
-stopifnot(all(c("junction_10x_aa", "clone_id") %in% names(flu_H5)))
-has_light <- "light_junction_10x_aa" %in% names(flu_H5)
-
-flu_H5_clean <- flu_H5 %>%
-  transmute(
-    clone_id = clone_id,
-    cdr3_h   = clean_aa(junction_10x_aa),
-    len_h    = nchar(cdr3_h),
-    cdr3_l   = if (has_light) clean_aa(light_junction_10x_aa) else NA_character_,
-    len_l    = if (has_light) nchar(cdr3_l) else NA_integer_
-  ) %>%
-  filter(!is.na(cdr3_h), len_h > 0)
-
-# ===  ===
-length_stats <- flu_H5_clean %>%
-  group_by(len_h) %>%
-  summarise(n_clones = n_distinct(clone_id), n_seq = n(), .groups = "drop") %>%
-  arrange(len_h)
-print(length_stats)
-
-clone_per_len <- flu_H5_clean %>%
-  group_by(len_h, clone_id) %>%
-  summarise(n_seq = n(), .groups = "drop") %>%
-  arrange(len_h, desc(n_seq))
-print(clone_per_len)
-
-# ===  ===
-target_len_h <- 20
-out_dir <- "./results/Figure6"
-
-# ========== 1) 
-seqs_h <- flu_H5_clean %>%
-  filter(len_h == target_len_h) %>%
-  pull(cdr3_h) %>%
-  unique()
-
-aligned_h <- seqs_h %>%
-  anchor_two_ends("[FW]") %>%
-  trim_sparse_cols(0.1) %>%
-  pad_right()
-
-if (length(aligned_h) > 0) {
-  p_heavy <- ggseqlogo(aligned_h, seq_type = "aa", method = "prob", col_scheme = "chemistry") +
-    labs(title = paste0("flu_H5 - Heavy CDR3 (length ", target_len_h, ")"),
-         x = "Position", y = "Probability") +
-    theme_bw()+
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),      axis.title.x = element_text(size = 18, face = "bold"),             # X
-      axis.title.y = element_text(size = 18, face = "bold"),             # Y
-      axis.text.x = element_text(size = 14, face = "bold"),              # X
-      axis.text.y = element_text(size = 14, face = "bold"),              # Y
-      legend.title = element_text(size = 16, face = "bold"),      legend.text = element_text(size = 14),      strip.text = element_text(size = 16, face = "bold")    )
-  print(p_heavy)
-  
-  output_path_png <- file.path(out_dir, paste0("flu_H5_HeavyCDR3_len", target_len_h, ".png"))
-  output_path_pdf <- file.path(out_dir, paste0("flu_H5_HeavyCDR3_len", target_len_h, ".pdf"))
-  ggsave(output_path_png, p_heavy, width = 11, height = 4.5, dpi = 300)
-  ggsave(output_path_pdf, p_heavy, width = 11, height = 4.5)
-}
-
-# ========== 2) 
-if (has_light) {
-  seqs_l_all <- flu_H5_clean %>%
-    filter(len_h == target_len_h, !is.na(cdr3_l), len_l > 0) %>%
-    pull(cdr3_l) %>%
-    unique()
-  
-  aligned_l_all <- seqs_l_all %>%
-    anchor_two_ends("[FW]") %>%
-    trim_sparse_cols(0.1) %>%
-    pad_right()
-  
-  if (length(aligned_l_all) > 0) {
-    p_light_all <- ggseqlogo(aligned_l_all, seq_type = "aa", method = "prob", col_scheme = "chemistry") +
-      labs(title = paste0("flu_H5 - Light CDR3 (all lengths; heavy=", target_len_h, ")"),
-           x = "Position", y = "Probability") +
-      theme_bw()+
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),        axis.title.x = element_text(size = 18, face = "bold"),             # X
-        axis.title.y = element_text(size = 18, face = "bold"),             # Y
-        axis.text.x = element_text(size = 14, face = "bold"),              # X
-        axis.text.y = element_text(size = 14, face = "bold"),              # Y
-        legend.title = element_text(size = 16, face = "bold"),        legend.text = element_text(size = 14),        strip.text = element_text(size = 16, face = "bold")      )
-    print(p_light_all)
-    
-    output_path_png <- file.path(out_dir, paste0("flu_H5_LightCDR3_allLen_withHeavy", target_len_h, ".png"))
-    output_path_pdf <- file.path(out_dir, paste0("flu_H5_LightCDR3_allLen_withHeavy", target_len_h, ".pdf"))
-    ggsave(output_path_png, p_light_all, width = 11, height = 4.5, dpi = 300)
-    ggsave(output_path_pdf, p_light_all, width = 11, height = 4.5)
-  }
-}
-######Figure6f------
-library(dplyr)
-library(stringr)
-library(ggplot2)
-library(tidyr)
-library(scales)
-
-# === Read data ===
-shared <- read.csv("./results/flu_h1_h5_shared_clones.csv",
-                   check.names = TRUE, stringsAsFactors = FALSE)
-
-# ===  ===
-clean_aa <- function(x){
-  x <- toupper(x)
-  x <- str_replace_all(x, "\\*", "")
-  x <- str_replace_all(x, "[^ACDEFGHIKLMNPQRSTVWY-]", "")
-  x
-}
-
-heavy_col <- "junction_10x_aa"
-light_col <- "light_junction_10x_aa"
-stopifnot(all(c(heavy_col, light_col) %in% names(shared)))
-
-df_len <- shared %>%
-  transmute(
-    Heavy = nchar(clean_aa(.data[[heavy_col]])),
-    Light = nchar(clean_aa(.data[[light_col]]))
-  ) %>%
-  pivot_longer(everything(), names_to = "Chain", values_to = "Length") %>%
-  filter(!is.na(Length), Length > 0)
-
-# ===  ===
-means <- df_len %>%
-  group_by(Chain) %>%
-  summarise(mean_len = mean(Length, na.rm = TRUE), .groups = "drop")
-
-# ===  ===
-means <- means %>%
-  mutate(
-    y_pos = ifelse(Chain == "Heavy", 0.32, 0.26)  )
-
-# ===  ===
-col_map  <- c("Heavy" = "#1f77b4", "Light" = "grey40")
-fill_map <- c("Heavy" = "#1f77b4", "Light" = "grey60")
-
-# ===  ===
-x_min <- min(df_len$Length, na.rm = TRUE)
-x_max <- max(df_len$Length, na.rm = TRUE)
-x_pad <- max(0.1 * (x_max - x_min), 0.5)
-x_limits <- c(x_min - x_pad, x_max + x_pad)
-
-# ===  ===
-p <- ggplot(df_len, aes(x = Length, fill = Chain, color = Chain)) +
-  geom_histogram(aes(y = after_stat(count / sum(count))),
-                 binwidth = 1, position = "identity",
-                 alpha = 0.35, linewidth = 0.3) +
-  geom_vline(data = means, aes(xintercept = mean_len, color = Chain),
-             linetype = "dotted", linewidth = 0.9, show.legend = FALSE) +
-  geom_text(data = means,
-            aes(x = mean_len, y = y_pos,
-                label = paste0("Mean: ", round(mean_len, 1)),
-                color = Chain),
-            hjust = -0.1, size = 6, fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = col_map, name = "Chain type",
-                     labels = c("Heavy chain", "Light chain")) +
-  scale_fill_manual(values  = fill_map, name = "Chain type",
-                    labels = c("Heavy chain", "Light chain")) +
-  coord_cartesian(xlim = x_limits, ylim = c(0, NA)) +
-  labs(x = "CDR3 length (AA)", y = "Proportion",
-       title = "shared: CDR3 length histogram") +
-  scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  theme_classic(base_size = 18) +
-  theme(
-    legend.position = "top",
-    legend.title = element_text(face = "bold", size = 16),
-    legend.text = element_text(size = 16),
-    plot.title = element_text(hjust = 0.5, face = "bold")
-  )
-
-print(p)
-
-# ===  ===
-out_dir <- "./results/Figure6"
-png_path <- file.path(out_dir, "shared_CDR3_length_histogram_meanAdjusted.png")
-pdf_path <- file.path(out_dir, "shared_CDR3_length_histogram_meanAdjusted.pdf")
-
-ggsave(png_path, p, width = 6, height = 5, dpi = 300)
-ggsave(pdf_path, p, width = 6, height = 5)
-
-library(dplyr)
-library(stringr)
-library(ggseqlogo)
-library(ggplot2)
-
-# ===  ===
-clean_aa <- function(x) {
-  x <- toupper(x)
-  x <- str_replace_all(x, "\\*", "")
-  x <- str_replace_all(x, "[^ACDEFGHIKLMNPQRSTVWY-]", "")
-  x
-}
-anchor_two_ends <- function(v, right_anchor = "[FW]") {
-  if (length(v) == 0) return(character(0))
-  v <- as.character(v)
-  lp <- regexpr("C", v, perl = TRUE); lp[lp < 0] <- 1L
-  rp <- sapply(v, function(s) {
-    hits <- gregexpr(right_anchor, s, perl = TRUE)[[1]]
-    if (all(hits < 0)) nchar(s) else max(hits)
-  })
-  left_part  <- mapply(substr, v, 1, lp, USE.NAMES = FALSE)
-  mid_part   <- mapply(function(s, l, r)
-    if (r - l - 1 <= 0) "" else substr(s, l + 1, r - 1),
-    v, lp, rp, USE.NAMES = FALSE)
-  right_part <- mapply(substr, v, rp, nchar(v), USE.NAMES = FALSE)
-  max_mid <- max(nchar(mid_part))
-  mapply(function(lf, mid, rt)
-    paste0(lf, mid, strrep("-", max_mid - nchar(mid)), rt),
-    left_part, mid_part, right_part, USE.NAMES = FALSE)
-}
-trim_sparse_cols <- function(seqs, min_non_gap_prop = 0.1) {
-  if (length(seqs) == 0) return(seqs)
-  L <- max(nchar(seqs))
-  mat <- sapply(seqs, function(s) strsplit(sprintf("%-*s", L, s), "")[[1]])
-  mat[mat == " "] <- "-"
-  keep <- apply(mat, 1, function(col) mean(col != "-")) >= min_non_gap_prop
-  if (!any(keep)) return(seqs)
-  seqs_trim <- apply(mat[keep, , drop = FALSE], 2, paste0, collapse = "")
-  unname(seqs_trim)
-}
-pad_right <- function(v) {
-  if (length(v) == 0) return(character(0))
-  stringr::str_pad(v, max(nchar(v)), side = "right", pad = "-")
-}
-
-# ===  ===
-stopifnot(all(c("junction_10x_aa", "clone_id") %in% names(shared)))
-has_light <- "light_junction_10x_aa" %in% names(shared)
-
-shared_clean <- shared %>%
-  transmute(
-    clone_id = clone_id,
-    cdr3_h   = clean_aa(junction_10x_aa),
-    len_h    = nchar(cdr3_h),
-    cdr3_l   = if (has_light) clean_aa(light_junction_10x_aa) else NA_character_,
-    len_l    = if (has_light) nchar(cdr3_l) else NA_integer_
-  ) %>%
-  filter(!is.na(cdr3_h), len_h > 0)
-
-# ===  ===
-length_stats <- shared_clean %>%
-  group_by(len_h) %>%
-  summarise(n_clones = n_distinct(clone_id), n_seq = n(), .groups = "drop") %>%
-  arrange(len_h)
-print(length_stats)
-
-clone_per_len <- shared_clean %>%
-  group_by(len_h, clone_id) %>%
-  summarise(n_seq = n(), .groups = "drop") %>%
-  arrange(len_h, desc(n_seq))
-print(clone_per_len)
-
-# ===  ===
-target_len_h <- 16
-out_dir <- "./results/Figure6"
-
-# ========== 1) 
-seqs_h <- shared_clean %>%
-  filter(len_h == target_len_h) %>%
-  pull(cdr3_h) %>%
-  unique()
-
-aligned_h <- seqs_h %>%
-  anchor_two_ends("[FW]") %>%
-  trim_sparse_cols(0.1) %>%
-  pad_right()
-
-if (length(aligned_h) > 0) {
-  p_heavy <- ggseqlogo(aligned_h, seq_type = "aa", method = "prob", col_scheme = "chemistry") +
-    labs(title = paste0("shared - Heavy CDR3 (length ", target_len_h, ")"),
-         x = "Position", y = "Probability") +
-    theme_bw()+
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),      axis.title.x = element_text(size = 18, face = "bold"),             # X
-      axis.title.y = element_text(size = 18, face = "bold"),             # Y
-      axis.text.x = element_text(size = 14, face = "bold"),              # X
-      axis.text.y = element_text(size = 14, face = "bold"),              # Y
-      legend.title = element_text(size = 16, face = "bold"),      legend.text = element_text(size = 14),      strip.text = element_text(size = 16, face = "bold")    )
-  print(p_heavy)
-  
-  output_path_png <- file.path(out_dir, paste0("shared_HeavyCDR3_len", target_len_h, ".png"))
-  output_path_pdf <- file.path(out_dir, paste0("shared_HeavyCDR3_len", target_len_h, ".pdf"))
-  ggsave(output_path_png, p_heavy, width = 11, height = 4.5, dpi = 300)
-  ggsave(output_path_pdf, p_heavy, width = 11, height = 4.5)
-}
-
-# ========== 2) 
-if (has_light) {
-  seqs_l_all <- shared_clean %>%
-    filter(len_h == target_len_h, !is.na(cdr3_l), len_l > 0) %>%
-    pull(cdr3_l) %>%
-    unique()
-  
-  aligned_l_all <- seqs_l_all %>%
-    anchor_two_ends("[FW]") %>%
-    trim_sparse_cols(0.1) %>%
-    pad_right()
-  
-  if (length(aligned_l_all) > 0) {
-    p_light_all <- ggseqlogo(aligned_l_all, seq_type = "aa", method = "prob", col_scheme = "chemistry") +
-      labs(title = paste0("shared - Light CDR3 (all lengths; heavy=", target_len_h, ")"),
-           x = "Position", y = "Probability") +
-      theme_bw()+
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),        axis.title.x = element_text(size = 18, face = "bold"),             # X
-        axis.title.y = element_text(size = 18, face = "bold"),             # Y
-        axis.text.x = element_text(size = 14, face = "bold"),              # X
-        axis.text.y = element_text(size = 14, face = "bold"),              # Y
-        legend.title = element_text(size = 16, face = "bold"),        legend.text = element_text(size = 14),        strip.text = element_text(size = 16, face = "bold")      )
-    print(p_light_all)
-    
-    output_path_png <- file.path(out_dir, paste0("shared_LightCDR3_allLen_withHeavy", target_len_h, ".png"))
-    output_path_pdf <- file.path(out_dir, paste0("shared_LightCDR3_allLen_withHeavy", target_len_h, ".pdf"))
-    ggsave(output_path_png, p_light_all, width = 11, height = 4.5, dpi = 300)
-    ggsave(output_path_pdf, p_light_all, width = 11, height = 4.5)
-  }
-}
-
-save.image(file = "./results/flu_mouse.project.RData")
+ggsave("./results/Figure23.pdf", plot = plot4k, width = 8, height = 7)
+ggsave("./results/Figure23.png", plot = plot4k, width = 8, height = 7,dpi = 300)
