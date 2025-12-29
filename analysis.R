@@ -46,117 +46,6 @@ library(ggpubr)
 library(viridis)
 
 # 02. Project 1 -- Different HA (H1 and H5) from influenza --------------------------------------------------
-## 02.0 scbcr annotation --------------------------------------------------
-
-### Igblast --------------------------------------------------
-#igblast download: https://ftp.ncbi.nih.gov/blast/executables/igblast/release/LATEST/ncbi-igblast-1.22.0-x64-linux.tar.gz
-#tar -xvzf ncbi-igblast-1.22.0-x64-linux.tar.gz
-#export PATH=$PATH:/usr/local/igblast/ncbi-igblast-1.22.0/bin
-
-### convert imgt to IgBLAST --------------------------------------------------
-# Issues with IGHV/IGKV/IGLV
-# sed -i '/^>/! s/[^ATCGNatcgn]//g' IGHV.fasta
-# sed -i '/^>/! s/[^ATCGNatcgn]//g' IGKV.fasta
-# sed -i '/^>/! s/[^ATCGNatcgn]//g' IGLV.fasta
-
-# /Q/software/ncbi-igblast-1.22.0/bin/makeblastdb -parse_seqids -dbtype nucl -in IGHV.fasta -out mouse_HV
-# /Q/software/ncbi-igblast-1.22.0/bin/makeblastdb -parse_seqids -dbtype nucl -in IGHJ.fasta -out mouse_HJ
-# /Q/software/ncbi-igblast-1.22.0/bin/makeblastdb -parse_seqids -dbtype nucl -in IGHD.fasta -out mouse_HD
-
-# /root/miniconda3/envs/bcr_analysis/bin/igblastn   
-# -query ./cell_reports/VDJ/G19-013_SampleID_2_13mar19/filtered_contig.fasta 
-# -germline_db_V /Q/10_imgt/mouse/IGHV.fasta  
-# -germline_db_D /Q/10_imgt/mouse/IGHD.fasta   
-# -germline_db_J /Q/10_imgt/mouse/IGHJ.fasta   
-# -auxiliary_data /root/miniconda3/envs/bcr_analysis/share/igblast/optional_file/mouse_gl.aux  
-# -organism mouse 
-# -ig_seqtype Ig 
-# -outfmt 19
-# -num_threads 8   
-# -out Heavy_bcr_igblast.out
-
-# /root/miniconda3/envs/bcr_analysis/bin/MakeDb.py igblast 
-# -i Heavy_bcr_igblast.out 
-# -s ./cell_reports/VDJ/G19-013_SampleID_2_13mar19/filtered_contig.fasta 
-# -r /Q/10_imgt/mouse/IGHV.fasta  
-#    /Q/10_imgt/mouse/IGHD.fasta   
-#    /Q/10_imgt/mouse/IGHJ.fasta 
-# --extendedExecution error, unresolved
-
-# cat IGHV.fasta IGKV.fasta IGLV.fasta > mouse_gl_V
-# cat IGHJ.fasta IGKJ.fasta IGLJ.fasta > mouse_gl_J
-# cat IGHD.fasta >mouse_gl_D
-
-# /Q/software/ncbi-igblast-1.22.0/bin/makeblastdb -parse_seqids -dbtype nucl -in mouse_gl_V -out mouse_gl_V
-# /Q/software/ncbi-igblast-1.22.0/bin/makeblastdb -parse_seqids -dbtype nucl -in mouse_gl_D -out mouse_gl_D
-# /Q/software/ncbi-igblast-1.22.0/bin/makeblastdb -parse_seqids -dbtype nucl -in mouse_gl_J -out mouse_gl_J
-
-# Run in terminal
-# flu_H1_mouse1:  /root/miniconda3/envs/bcr_analysis/bin/igblastn -query ./cell_reports/VDJ/G19-013_SampleID_2_13mar19/filtered_contig.fasta  -germline_db_V /Q/10_imgt/mouse/mouse_gl_V -germline_db_D /Q/10_imgt/mouse/mouse_gl_D  -germline_db_J /Q/10_imgt/mouse/mouse_gl_J   -auxiliary_data /root/miniconda3/envs/bcr_analysis/share/igblast/optional_file/mouse_gl.aux  -organism mouse  -ig_seqtype Ig -outfmt 19 -num_threads 8  -out mouse_H1_1.out
-# flu_H1_mouse2: /root/miniconda3/envs/bcr_analysis/bin/igblastn -query ./cell_reports/VDJ/G19-013_SampleID_1_9apr19/filtered_contig.fasta  -germline_db_V /Q/10_imgt/mouse/mouse_gl_V -germline_db_D /Q/10_imgt/mouse/mouse_gl_D  -germline_db_J /Q/10_imgt/mouse/mouse_gl_J   -auxiliary_data /root/miniconda3/envs/bcr_analysis/share/igblast/optional_file/mouse_gl.aux  -organism mouse  -ig_seqtype Ig -outfmt 19 -num_threads 8  -out mouse_H1_2.out
-# naive_mouse1: /root/miniconda3/envs/bcr_analysis/bin/igblastn -query ./cell_reports/VDJ/G19-013_SampleID_1_16apr19/filtered_contig.fasta  -germline_db_V /Q/10_imgt/mouse/mouse_gl_V -germline_db_D /Q/10_imgt/mouse/mouse_gl_D  -germline_db_J /Q/10_imgt/mouse/mouse_gl_J   -auxiliary_data /root/miniconda3/envs/bcr_analysis/share/igblast/optional_file/mouse_gl.aux  -organism mouse  -ig_seqtype Ig -outfmt 19 -num_threads 8  -out naive_mouse_1.out
-# naive_mouse2: /root/miniconda3/envs/bcr_analysis/bin/igblastn -query ./cell_reports/VDJ/G19-035_SampleID_1_27may19/filtered_contig.fasta  -germline_db_V /Q/10_imgt/mouse/mouse_gl_V -germline_db_D /Q/10_imgt/mouse/mouse_gl_D  -germline_db_J /Q/10_imgt/mouse/mouse_gl_J   -auxiliary_data /root/miniconda3/envs/bcr_analysis/share/igblast/optional_file/mouse_gl.aux  -organism mouse  -ig_seqtype Ig -outfmt 19 -num_threads 8  -out naive_mouse_2.out
-
-### Annotation --------------------------------------------------
-# merge_cellranger_igblast
-# # merge_cellranger_igblast <- function(cellranger_csv, igblast_tsv) {
-#   # Read CellRanger output
-#   cellranger <- read_csv(cellranger_csv, show_col_types = FALSE)
-#   
-#   # Read IgBLAST AIRR format output
-#   igblast <- read_tsv(igblast_tsv, show_col_types = FALSE)
-#   
-#   # Merge, contig_id corresponds to sequence_id
-#   merged <- cellranger %>%
-#     left_join(igblast, by = c("contig_id" = "sequence_id"))
-#   
-#   # Rename to avoid field conflicts
-#   merged <- merged %>%
-#     rename(
-#       productive_cellranger = productive.x,
-#       productive_igblast = productive.y,
-#       v_gene_cellranger = v_gene,
-#       v_call_igblast = v_call,
-#       j_gene_cellranger = j_gene,
-#       j_call_igblast = j_call
-#     )
-#   
-#   return(merged)
-# }
-# merge_cellranger_igblast
-#### flu_H1_mouse1 --------------------------------------------------
-#flu_H1_mouse1_merged <- merge_cellranger_igblast(
-#  cellranger_csv = "./cell_reports/VDJ/G19-013_SampleID_2_13mar19/filtered_contig_annotations.csv",
-#  igblast_tsv   = "./cell_reports/VDJ/annotation_results/mouse_H1_1.out"
-#)
-#flu_H1_mouse1_merged.clean <- process_and_format_bcr(flu_H1_mouse1_merged)
-#write_csv(flu_H1_mouse1_merged.clean, "./cell_reports/VDJ/annotation_results/flu_H1_mouse1_merged_bcr_annotations.csv")
-
-#### flu_H1_mouse2 --------------------------------------------------
-# flu_H1_mouse2_merged <- merge_cellranger_igblast(
-#   cellranger_csv = "./cell_reports/VDJ/G19-013_SampleID_1_9apr19/filtered_contig_annotations.csv",
-#   igblast_tsv   = "./cell_reports/VDJ/annotation_results/mouse_H1_2.out"
-# )
-# flu_H1_mouse2_merged.clean <- process_and_format_bcr(flu_H1_mouse2_merged)
-# write_csv(flu_H1_mouse2_merged.clean, "./cell_reports/VDJ/annotation_results/flu_H1_mouse2_merged_bcr_annotations.csv")
-
-#### naive_mouse1 --------------------------------------------------
-# naive_mouse1_merged <- merge_cellranger_igblast(
-#   cellranger_csv = "./cell_reports/VDJ/G19-013_SampleID_1_16apr19/filtered_contig_annotations.csv",
-#   igblast_tsv   = "./cell_reports/VDJ/annotation_results/naive_mouse_1.out"
-# )
-# naive_mouse1_merged.clean <- process_and_format_bcr(naive_mouse1_merged)
-# write_csv(naive_mouse1_merged.clean, "./cell_reports/VDJ/annotation_results/naive_mouse1_merged_bcr_annotations.csv")
-
-#### naive_mouse2 --------------------------------------------------
-# naive_mouse2_merged <- merge_cellranger_igblast(
-#   cellranger_csv = "./cell_reports/VDJ/G19-035_SampleID_1_27may19/filtered_contig_annotations.csv",
-#   igblast_tsv   = "./cell_reports/VDJ/annotation_results/naive_mouse_2.out"
-# )
-# naive_mouse2_merged.clean <- process_and_format_bcr(naive_mouse2_merged)
-# write_csv(naive_mouse2_merged.clean, "./cell_reports/VDJ/annotation_results/naive_mouse2_merged_bcr_annotations.csv")
-
-#2. Calculating nearest neighbor distances based on heavy chains
 
 library(shazam)#Package for SHM and clonal analysis
 library(ggplot2)
@@ -165,29 +54,10 @@ native_mouse2_heavy_parse <- read.table("./cell_reports/VDJ/annotation_results/h
 native_mouse2_dist_ham <- distToNearest(native_mouse2_heavy_parse, sequenceColumn="junction", #Calculate distance to nearest neighbor (Hamming distance)
                           vCallColumn="v_call", jCallColumn="j_call",
                           model="ham", normalize="len", nproc=1)
-# Core function call
-# distToNearest: shazam
-# FoundVJ
-# sequenceColumn="junction":  junction  (CDR3)
-# vCallColumn="v_call", jCallColumn="j_call":
-# VJ
-# model="ham":  (Hamming distance)
-# normalize="len": CDR3
-# nproc=1: 1CPU
+
 native_mouse2_output_ham <- findThreshold(native_mouse2_dist_ham$dist_nearest, method="density")
-# findThreshold: shazam
-# dist_ham$dist_nearest:
-# method="density":
-# dist_s5f <- distToNearest(native_mouse2_heavy_parse, sequenceColumn="junction",
-#                           vCallColumn="v_call", jCallColumn="j_call",
-#                           model="hh_s5f", normalize="none", nproc=1)
-# "hh_s5f"
-# "ham"
-# output_s5f <- findThreshold(dist_s5f$dist_nearest, method="density")
 native_mouse2_output_ham@threshold
-# output_s5f@threshold# show the threshold
-# output_ham@threshold  0.16
-# 0.16  `DefineClones.py`  `--dist`
+
 
 file_paths <- c(
   "fluH1_mouse1" = "./cell_reports/VDJ/annotation_results/heavy_fluH1_mouse1_parse-select.tsv",
@@ -300,64 +170,6 @@ for (prefix in sample_prefixes) {
 print("--- All samples processed and saved. ---")
 
 list.files(path = output_directory, pattern = "\\.merge\\.bcr\\.tsv$")
-
-###translate DNA TO aa------
-sample_prefixes <- c(
-  "fluH1_mouse1", 
-  "fluH1_mouse2", 
-  "fluH5_mouse", 
-  "naive_mouse1", 
-  "naive_mouse2"
-)
-
-# Data directory
-data_directory <- "./cell_reports/VDJ/annotation_results"
-
-# Columns to translate
-heavy_chain_fields <- c("fwr1", "cdr1", "fwr2", "cdr2", "fwr3", "cdr3")
-light_chain_fields <- c("light_fwr1", "light_cdr1", "light_fwr2", "light_cdr2", "light_fwr3", "light_cdr3")
-
-all_bcr_data_translated <- lapply(sample_prefixes, function(prefix) {
-  
-  message(paste0("--- Processing and translating sample: ", prefix, " ---"))
-  
-  # Input file path
-  file_path <- file.path(data_directory, paste0(prefix, ".merge.bcr.tsv"))
-  if (!file.exists(file_path)) {
-    warning(paste("File not found for sample:", prefix, ". Skipping."))
-    return(NULL)
-  }
-  
-  bcr_df <- read_tsv(file_path, col_types = cols(.default = "c"))
-  
-  # Translate each field column by column
-  for (field in c(heavy_chain_fields, light_chain_fields)) {
-    if (field %in% colnames(bcr_df)) {
-      aa_field <- paste0(field, "_aa")
-      bcr_df[[aa_field]] <- sapply(bcr_df[[field]], function(seq_nt) {
-        if (is.na(seq_nt) || nchar(seq_nt) < 3) {
-          return(NA)
-        } else {
-          # Catch translation errors
-          tryCatch({
-            alakazam::translateDNA(seq_nt, trim = TRUE)
-          }, error = function(e) {
-            NA
-          })
-        }
-      })
-    }
-  }
-  
-  message(paste0("Translation complete for sample: ", prefix))
-  
-  # --- Save results ---
-  out_file <- file.path(data_directory, paste0(prefix, ".merge.final.bcr.tsv"))
-  write_tsv(bcr_df, out_file)
-  message(paste0("Saved translated file: ", out_file))
-  
-  return(bcr_df)
-})
 
 ###shm calculation for Heavy Chain------
 # --- Step 0: Load required libraries ---
@@ -517,24 +329,24 @@ if (!dir.exists(results_directory)) {
 calculate_shm_for_light_chain <- function(sample_data, sample_name, output_dir) {
   
   message("\n----------------------------------------------------")
-  message("--- 开始为样本处理轻链SHM: ", sample_name, " ---")
+  message("--- SHM: ", sample_name, " ---")
   
   # Check required columns
   required_cols <- c("sequence_id", "sequence_alignment", "germline_alignment")
   if (!all(required_cols %in% colnames(sample_data))) {
-    warning("样本 '", sample_name, "' 缺少必需的列，跳过处理。")
+    warning("Sample '", sample_name, "' ")
     return(NULL)
   }
   
   db <- sample_data
   
   if (nrow(db) > 0) {
-    message("找到 ", nrow(db), " 条轻链序列进行计算。")
+    message("Found ", nrow(db), " light chain sequences for calculation")
     
     # ---  (SHM) ---
     
     # Calculate total mutation count (COUNT)
-    message("  正在计算突变数量 (COUNT)...")
+    message("  Calculating mutation counts (COUNT)...")
     count_db <- observedMutations(db, 
                                   sequenceColumn = "sequence_alignment", 
                                   germlineColumn = "germline_alignment",
@@ -543,7 +355,7 @@ calculate_shm_for_light_chain <- function(sample_data, sample_name, output_dir) 
                                   nproc = 1)
     
     # Calculate total mutation frequency (FREQUENCY)
-    message("  正在计算突变频率 (FREQUENCY)...")
+    message("  Calculating mutation frequencies (FREQUENCY)...")
     freq_db <- observedMutations(db, 
                                  sequenceColumn = "sequence_alignment", 
                                  germlineColumn = "germline_alignment",
@@ -570,7 +382,7 @@ calculate_shm_for_light_chain <- function(sample_data, sample_name, output_dir) 
       left_join(mutation_freqs, by = "sequence_id")
     
   } else {
-    warning("在样本 '", sample_name, "' 中没有找到任何序列。")
+    warning("Sample '", sample_name, "' Found")
     db_with_mutations <- db %>%
       mutate(
         MU_COUNT_LIGHT_TOTAL = NA_integer_, 
@@ -584,7 +396,7 @@ calculate_shm_for_light_chain <- function(sample_data, sample_name, output_dir) 
   
   write_tsv(db_with_mutations, output_filepath)
   
-  message("成功计算轻链SHM并保存到: ", output_filename)
+  message("Successfully calculated light chain SHM and saved to: ", output_filename)
 }
 
 # --- Step 4: Loop through all data frames ---
@@ -593,11 +405,11 @@ for (name in names(list_of_dfs)) {
   tryCatch({
     calculate_shm_for_light_chain(sample_data = current_data, sample_name = name, output_dir = results_directory)
   }, error = function(e) {
-    message("处理样本 '", name, "' 时发生错误: ", e$message)
+    message("Error processing sample '", name, "' error: ", e$message)
   })
 }
 
-message("\n\n所有样本处理完毕！请检查 '", results_directory, "' 文件夹。")
+message("\n\nAll samples processed! Please check '", results_directory, "' folder")
 
 ## 02.1 samples --------------------------------------------------
 ### flu_H5_mouse ----------------------------------------------------------
@@ -624,7 +436,7 @@ flu_H5_mouse.bcr <- read.delim("./cell_reports/VDJ/annotation_results/fluH5_mous
   
   # If no data left after initial filtering, stop and warn
   if(nrow(clean_bcr) == 0) {
-    warning("在初始筛选 (productive/high_confidence) 后没有数据剩下。这极不寻常，请手动检查 flu_H5.bcr 中这两列的内容！")
+    warning("Initial filtering (productive/high_confidence)  flu_H5.bcr ")
     return(tibble()) # tibble
   }
   
@@ -689,7 +501,7 @@ add_bcr_to_seurat <- function(seurat_obj, cleaned_bcr_df) {
   seurat_obj@meta.data <- merged_metadata
   
   # 10. Output message
-  message("BCR数据已成功合并到Seurat对象的元数据中！")
+  message("BCR data successfully merged into Seurat metadata")
   
   # 11. Return updated Seurat object
   return(seurat_obj)
@@ -2582,7 +2394,7 @@ obj_bcr@meta.data <- obj_bcr@meta.data %>%
   mutate(treatment_group = factor(treatment_group, levels = c("Naive", "Flu_H1", "Flu_H5")))
 
 # () 
-cat("实验分组的因子水平顺序 (应为 Naive, Flu_H1, Flu_H5):\n")
+cat(" ( Naive, Flu_H1, Flu_H5):\n")
 print(levels(obj_bcr$treatment_group))
 
 head(obj_bcr@meta.data$c_call)
@@ -2908,7 +2720,7 @@ results_directory <- "./results/Chord_Diagrams_Final_Corrected"
 # folder
 if (!dir.exists(results_directory)) {
   dir.create(results_directory, recursive = TRUE)
-  message("已创建结果文件夹: ", results_directory)
+  message("folder: ", results_directory)
 }
 
 # ---  2:  ---
@@ -2927,7 +2739,7 @@ list_of_samples <- list(
 generate_chord_diagram_final_corrected <- function(sample_data, sample_name, output_dir) {
   
   message("\n----------------------------------------------------")
-  message("--- 开始处理样本: ", sample_name, " ---")
+  message("--- : ", sample_name, " ---")
   message("----------------------------------------------------")
   
   # 3.1 
@@ -2943,7 +2755,7 @@ generate_chord_diagram_final_corrected <- function(sample_data, sample_name, out
     dplyr::rename(from = heavy_v, to = light_v, value = count)
   
   if (nrow(pairing_freq) == 0) {
-    message("警告: 样本 '", sample_name, "' 没有有效的配对数据，跳过绘图。")
+    message("Warning: Sample '", sample_name, "' ")
     return(NULL)
   }
   
@@ -2989,18 +2801,18 @@ generate_chord_diagram_final_corrected <- function(sample_data, sample_name, out
   
   # 3.4 
   pdf_file_name <- file.path(output_dir, paste0(sample_name, "_Chord_Diagram.pdf"))
-  message("正在生成 PDF 文件: ", pdf_file_name)
+  message("Generating PDF file: ", pdf_file_name)
   pdf(pdf_file_name, width = 12, height = 12)
   create_plot_commands()
   dev.off()
   
   png_file_name <- file.path(output_dir, paste0(sample_name, "_Chord_Diagram.png"))
-  message("正在生成 PNG 文件: ", png_file_name)
+  message("Generating PNG file: ", png_file_name)
   png(png_file_name, width = 1800, height = 1800, res = 150)
   create_plot_commands()
   dev.off()
   
-  message("--- 样本 '", sample_name, "' 处理完成 ---")
+  message("--- Sample '", sample_name, "' processing complete ---")
 }
 
 # ---  4:  ---
@@ -3009,11 +2821,11 @@ for (name in names(list_of_samples)) {
   tryCatch({
     generate_chord_diagram_final_corrected(sample_data = current_data, sample_name = name, output_dir = results_directory)
   }, error = function(e) {
-    message("处理样本 '", name, "' 时发生错误: ", e$message)
+    message("Error processing sample '", name, "' error: ", e$message)
   })
 }
 
-message("\n\n所有样本处理完毕！请检查 '", results_directory, "' 文件夹。")
+message("\n\nAll samples processed! Please check '", results_directory, "' folder")
 
 ###top 30
 
@@ -3029,7 +2841,7 @@ results_directory <- "./results/Chord_Diagrams_Top30_Heavy"
 
 if (!dir.exists(results_directory)) {
   dir.create(results_directory, recursive = TRUE)
-  message("已创建结果文件夹: ", results_directory)
+  message("folder: ", results_directory)
 }
 
 # ---  2:  ---
@@ -3048,7 +2860,7 @@ list_of_samples <- list(
 generate_chord_diagram_top30_heavy <- function(sample_data, sample_name, output_dir) {
   
   message("\n----------------------------------------------------")
-  message("--- 开始处理样本: ", sample_name, " ---")
+  message("--- : ", sample_name, " ---")
   message("----------------------------------------------------")
   
   pairing_freq <- sample_data %>%
@@ -3063,7 +2875,7 @@ generate_chord_diagram_top30_heavy <- function(sample_data, sample_name, output_
     dplyr::rename(from = heavy_v, to = light_v, value = count)
   
   if (nrow(pairing_freq) == 0) {
-    message("警告: 样本 '", sample_name, "' 没有有效的配对数据，跳过绘图。")
+    message("Warning: Sample '", sample_name, "' ")
     return(NULL)
   }
   
@@ -3075,14 +2887,14 @@ generate_chord_diagram_top30_heavy <- function(sample_data, sample_name, output_
   
   top_heavy_genes <- head(heavy_gene_usage$from, 20)
   
-  message(sprintf("在 '%s' 中发现 %d 个独特的重链基因。将筛选出 Top %d 进行可视化。",
+  message(sprintf(" '%s'  %d  Top %d ",
                   sample_name, nrow(heavy_gene_usage), length(top_heavy_genes)))
   
   pairing_freq_filtered <- pairing_freq %>%
     filter(from %in% top_heavy_genes)
   
   if (nrow(pairing_freq_filtered) == 0) {
-    message("警告: 样本 '", sample_name, "' 筛选Top 30重链后无数据，跳过绘图。")
+    message("Warning: Sample '", sample_name, "' Top 30")
     return(NULL)
   }
   
@@ -3124,7 +2936,7 @@ generate_chord_diagram_top30_heavy <- function(sample_data, sample_name, output_
   }
   
   save_plot_with_titles <- function(file_path, device, width, height, res = NA) {
-    message("正在生成文件: ", file_path)
+    message(": ", file_path)
     
     if (device == "pdf") {
       pdf(file_path, width = width, height = height)
@@ -3146,7 +2958,7 @@ generate_chord_diagram_top30_heavy <- function(sample_data, sample_name, output_
     device = "png", width = 1500, height = 1500, res = 150
   )
   
-  message("--- 样本 '", sample_name, "' 处理完成 ---")
+  message("--- Sample '", sample_name, "' processing complete ---")
 }
 
 for (name in names(list_of_samples)) {
@@ -3158,7 +2970,7 @@ for (name in names(list_of_samples)) {
       output_dir = results_directory
     )
   }, error = function(e) {
-    message("处理样本 '", name, "' 时发生错误: ", e$message)
+    message("Error processing sample '", name, "' error: ", e$message)
   })
 }
 
@@ -3206,7 +3018,7 @@ list_of_samples <- list(
   naive_mouse_combined = naive_mouse.bcr
 )
 
-message("所有7个数据框已成功加载并准备就绪。")
+message("7")
 
 # ---  3:  ---
 results_directory <- "./results/Treemap"
@@ -3214,20 +3026,20 @@ results_directory <- "./results/Treemap"
 tryCatch({
   if (!dir.exists(results_directory)) {
     dir.create(results_directory, recursive = TRUE)
-    message("成功创建文件夹: ", results_directory)
+    message("folder: ", results_directory)
   } else {
-    message("文件夹已存在: ", results_directory)
+    message("folder: ", results_directory)
   }
 }, error = function(e) {
   # recursive=TRUE
-  message("创建文件夹失败！这很可能是由于网络共享的写入权限不足。")
-  message("原始错误信息: ", e$message)
+  message("folder")
+  message("Original error message: ", e$message)
 })
 
 # ---  4:  ---
 # (FoundArial)
 generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
-  message("\n--- 开始处理样本: ", sample_name, " ---")
+  message("\n--- Start processing sample: ", sample_name, " ---")
   
   processed_H_fre <- sample_data %>%
     tidyr::unnest(v_call_10x, keep_empty = TRUE) %>%
@@ -3239,7 +3051,7 @@ generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
     arrange(desc(total_value))
   
   if (nrow(processed_H_fre) == 0) {
-    message("警告: 样本 '", sample_name, "' 没有有效的重链数据，跳过绘图。")
+    message("Warning: Sample '", sample_name, "' has no valid heavy chain data, skipping plot.")
     return(NULL)
   }
   
@@ -3272,14 +3084,14 @@ generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
     )
   
   pdf_file_name <- file.path(output_dir, paste0(sample_name, "_Treemap.pdf"))
-  message("正在生成 PDF 文件: ", pdf_file_name)
+  message("Generating PDF file: ", pdf_file_name)
   ggsave(pdf_file_name, plot = treemap_plot, width = 12, height = 8, device = cairo_pdf) # cairo_pdf
   
   png_file_name <- file.path(output_dir, paste0(sample_name, "_Treemap.png"))
-  message("正在生成 PNG 文件: ", png_file_name)
+  message("Generating PNG file: ", png_file_name)
   ggsave(png_file_name, plot = treemap_plot, width = 12, height = 8, dpi = 300, device = "png")
   
-  message("--- 样本 '", sample_name, "' 处理完成 ---")
+  message("--- Sample '", sample_name, "' processing complete ---")
 }
 
 # ---  5:  ---
@@ -3289,7 +3101,7 @@ for (name in names(list_of_samples)) {
   tryCatch({
     generate_publication_treemap(sample_data = current_data, sample_name = name, output_dir = results_directory)
   }, error = function(e) {
-    message("处理样本 '", name, "' 时发生错误: ", e$message)
+    message("Error processing sample '", name, "' error: ", e$message)
   })
 }
 
@@ -3300,20 +3112,20 @@ results_directory <- "./results/Treemap_Light"
 tryCatch({
   if (!dir.exists(results_directory)) {
     dir.create(results_directory, recursive = TRUE)
-    message("成功创建文件夹: ", results_directory)
+    message("folder: ", results_directory)
   } else {
-    message("文件夹已存在: ", results_directory)
+    message("folder: ", results_directory)
   }
 }, error = function(e) {
   # recursive=TRUE
-  message("创建文件夹失败！这很可能是由于网络共享的写入权限不足。")
-  message("原始错误信息: ", e$message)
+  message("folder")
+  message("Original error message: ", e$message)
 })
 
 # ---  4:  ---
 # (FoundArial)
 generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
-  message("\n--- 开始处理样本: ", sample_name, " ---")
+  message("\n--- Start processing sample: ", sample_name, " ---")
   
   processed_H_fre <- sample_data %>%
     tidyr::unnest(light_v_call_10x, keep_empty = TRUE) %>%
@@ -3325,7 +3137,7 @@ generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
     arrange(desc(total_value))
   
   if (nrow(processed_H_fre) == 0) {
-    message("警告: 样本 '", sample_name, "' 没有有效的重链数据，跳过绘图。")
+    message("Warning: Sample '", sample_name, "' has no valid heavy chain data, skipping plot.")
     return(NULL)
   }
   
@@ -3358,14 +3170,14 @@ generate_publication_treemap <- function(sample_data, sample_name, output_dir) {
     )
   
   pdf_file_name <- file.path(output_dir, paste0(sample_name, "_Treemap.pdf"))
-  message("正在生成 PDF 文件: ", pdf_file_name)
+  message("Generating PDF file: ", pdf_file_name)
   ggsave(pdf_file_name, plot = treemap_plot, width = 12, height = 8, device = cairo_pdf) # cairo_pdf
   
   png_file_name <- file.path(output_dir, paste0(sample_name, "_Treemap.png"))
-  message("正在生成 PNG 文件: ", png_file_name)
+  message("Generating PNG file: ", png_file_name)
   ggsave(png_file_name, plot = treemap_plot, width = 12, height = 8, dpi = 300, device = "png")
   
-  message("--- 样本 '", sample_name, "' 处理完成 ---")
+  message("--- Sample '", sample_name, "' processing complete ---")
 }
 
 # ---  5:  ---
@@ -3375,7 +3187,7 @@ for (name in names(list_of_samples)) {
   tryCatch({
     generate_publication_treemap(sample_data = current_data, sample_name = name, output_dir = results_directory)
   }, error = function(e) {
-    message("处理样本 '", name, "' 时发生错误: ", e$message)
+    message("Error processing sample '", name, "' error: ", e$message)
   })
 }
 
@@ -3418,18 +3230,18 @@ list_of_samples <- list(
   flu_H1_mouse_combined = flu_H1_mouse.bcr,
   naive_mouse_combined  = naive_mouse.bcr
 )
-message("所有7个数据框已成功加载并准备就绪。")
+message("7")
 
 # --- Step 2: Set output directory ---
 # folder
 results_directory <- "./results/Treemap_Heavy_Top30"
 dir.create(results_directory, showWarnings = FALSE, recursive = TRUE)
-message("输出目录已准备就绪: ", results_directory)
+message("Output directory ready: ", results_directory)
 
 # ---  3:  (Top 30) ---
 generate_heavy_chain_top30_treemap <- function(sample_data, sample_name, output_dir) {
   
-  message("\n--- 开始处理样本: ", sample_name, " ---")
+  message("\n--- Start processing sample: ", sample_name, " ---")
   
   # 3.1 Top 30
   processed_H_fre <- sample_data %>%
@@ -3444,7 +3256,7 @@ generate_heavy_chain_top30_treemap <- function(sample_data, sample_name, output_
     mutate(label = str_replace(heavy_v, "IGHV", "VH"))
   
   if (nrow(processed_H_fre) == 0) {
-    message("警告: 样本 '", sample_name, "' 没有有效的重链数据，跳过绘图。")
+    message("Warning: Sample '", sample_name, "' has no valid heavy chain data, skipping plot.")
     return(NULL)
   }
   
@@ -3478,14 +3290,14 @@ generate_heavy_chain_top30_treemap <- function(sample_data, sample_name, output_
   
   # 3.4 
   pdf_file_name <- file.path(output_dir, paste0(sample_name, "_Heavy_Top30_Treemap.pdf"))
-  message("正在生成 PDF 文件: ", pdf_file_name)
+  message("Generating PDF file: ", pdf_file_name)
   ggsave(pdf_file_name, plot = treemap_plot, width = 12, height = 4, device = "pdf")
   
   png_file_name <- file.path(output_dir, paste0(sample_name, "_Heavy_Top30_Treemap.png"))
-  message("正在生成 PNG 文件: ", png_file_name)
+  message("Generating PNG file: ", png_file_name)
   ggsave(png_file_name, plot = treemap_plot, width = 12, height = 4, dpi = 300, device = "png")
   
-  message("--- 样本 '", sample_name, "' 处理完成 ---")
+  message("--- Sample '", sample_name, "' processing complete ---")
 }
 
 # ---  4:  ---
@@ -3494,7 +3306,7 @@ for (name in names(list_of_samples)) {
   tryCatch({
     generate_heavy_chain_top30_treemap(sample_data = current_data, sample_name = name, output_dir = results_directory)
   }, error = function(e) {
-    message("处理样本 '", name, "' 时发生错误: ", e$message)
+    message("Error processing sample '", name, "' error: ", e$message)
   })
 }
 
@@ -3502,12 +3314,12 @@ for (name in names(list_of_samples)) {
 # ---  2:  ---
 results_directory <- "./results/Treemap_Light_Top30"
 dir.create(results_directory, showWarnings = FALSE, recursive = TRUE)
-message("轻链分析的输出目录已准备就绪: ", results_directory)
+message("Output directory ready: ", results_directory)
 
 # ---  3:  (Top 30) ---
 generate_light_chain_top30_treemap <- function(sample_data, sample_name, output_dir) {
   
-  message("\n--- 开始处理样本: ", sample_name, " (Light Chain) ---")
+  message("\n--- Start processing sample: ", sample_name, " (Light Chain) ---")
   
   # 3.1 Top 30
   processed_L_fre <- sample_data %>%
@@ -3526,7 +3338,7 @@ generate_light_chain_top30_treemap <- function(sample_data, sample_name, output_
       TRUE ~ light_v    ))
   
   if (nrow(processed_L_fre) == 0) {
-    message("警告: 样本 '", sample_name, "' 没有有效的轻链数据，跳过绘图。")
+    message("Warning: Sample '", sample_name, "' ")
     return(NULL)
   }
   
@@ -3560,14 +3372,14 @@ generate_light_chain_top30_treemap <- function(sample_data, sample_name, output_
   
   # 3.4 
   pdf_file_name <- file.path(output_dir, paste0(sample_name, "_Light_Top30_Treemap.pdf"))
-  message("正在生成 PDF 文件: ", pdf_file_name)
+  message("Generating PDF file: ", pdf_file_name)
   ggsave(pdf_file_name, plot = treemap_plot, width = 12, height = 5, device = "pdf")
   
   png_file_name <- file.path(output_dir, paste0(sample_name, "_Light_Top30_Treemap.png"))
-  message("正在生成 PNG 文件: ", png_file_name)
+  message("Generating PNG file: ", png_file_name)
   ggsave(png_file_name, plot = treemap_plot, width = 12, height = 5, dpi = 300, device = "png")
   
-  message("--- 样本 '", sample_name, "' 处理完成 ---")
+  message("--- Sample '", sample_name, "' processing complete ---")
 }
 
 # ---  4:  ---
@@ -3576,7 +3388,7 @@ for (name in names(list_of_samples)) {
   tryCatch({
     generate_light_chain_top30_treemap(sample_data = current_data, sample_name = name, output_dir = results_directory)
   }, error = function(e) {
-    message("处理样本 '", name, "' 时发生错误: ", e$message)
+    message("Error processing sample '", name, "' error: ", e$message)
   })
 }
 
@@ -3636,7 +3448,7 @@ generate_sankey_plot <- function(sample_data, sample_name, output_dir) {
   sankey_data <- prepare_sankey_data(sample_data)
   
   if (nrow(sankey_data) == 0) {
-    message("样本 '", sample_name, "' 没有有效的V-J配对数据，跳过绘图。")
+    message("Sample '", sample_name, "' has no valid V-J pairing data, skipping plot.")
     return(NULL)
   }
   
@@ -3700,17 +3512,17 @@ generate_sankey_plot <- function(sample_data, sample_name, output_dir) {
   ggsave(pdf_file, plot = sankey_plot, width = 7, height = 14, device = "pdf")
   ggsave(png_file, plot = sankey_plot, width = 7, height = 14, dpi = 300, device = "png", bg = "white")
   
-  message("已为样本 '", sample_name, "' 生成桑基图")
+  message("Sankey plot generated for sample '", sample_name, "'")
   
   return(sankey_plot)
 }
 
 for (sample_name in names(sample_list)) {
-  message("正在处理样本: ", sample_name)
+  message("Processing sample: ", sample_name)
   tryCatch({
     generate_sankey_plot(sample_list[[sample_name]], sample_name, output_dir)
   }, error = function(e) {
-    message("处理样本 '", sample_name, "' 时出错: ", e$message)
+    message("Error processing sample '", sample_name, "' : ", e$message)
   })
 }
 
@@ -3731,7 +3543,7 @@ base_path <- "./cell_reports/VDJ/annotation_results/"
 output_dir <- "./results/VDJ_Sankey_Top30_VH_Plots_Large"dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 # 1.2 
-message("正在加载数据...")
+message("Loading data...")
 flu_H1_mouse1.bcr <- readr::read_tsv(file.path(base_path, "fluH1_mouse1.merge.final.bcr.shm.tsv"), col_types = cols(.default = "c"))
 flu_H1_mouse2.bcr <- readr::read_tsv(file.path(base_path, "fluH1_mouse2.merge.final.bcr.shm.tsv"), col_types = cols(.default = "c"))
 flu_H5_mouse.bcr  <- readr::read_tsv(file.path(base_path, "fluH5_mouse.merge.final.bcr.shm.tsv"), col_types = cols(.default = "c"))
@@ -3752,7 +3564,7 @@ sample_list <- list(
   flu_H1_mouse_combined = flu_H1_mouse.bcr,
   naive_mouse_combined  = naive_mouse.bcr
 )
-message("所有数据已加载并准备就绪。")
+message("")
 
 prepare_sankey_data <- function(data, top_n = 20) {
   processed_data <- data %>%
@@ -3771,7 +3583,7 @@ prepare_sankey_data <- function(data, top_n = 20) {
   vh_usage <- processed_data %>% count(VH, sort = TRUE)
   top_vh_genes <- head(vh_usage$VH, top_n)
   
-  message(sprintf("共发现 %d 个独特的VH基因，将筛选出 Top %d 用于可视化。", 
+  message(sprintf(" %d VH Top %d ", 
                   nrow(vh_usage), length(top_vh_genes)))
   
   sankey_data <- processed_data %>%
@@ -3792,7 +3604,7 @@ generate_sankey_plot <- function(
     gene_label_size = 4) {
   
   if (nrow(sample_data) == 0) {
-    message("样本 '", sample_name, "' 在筛选后没有有效的V-J配对数据，跳过绘图。")
+    message("Sample '", sample_name, "' V-J")
     return(NULL)
   }
   
@@ -3846,12 +3658,12 @@ generate_sankey_plot <- function(
   ggsave(pdf_file, plot = sankey_plot, width = output_width, height = plot_height, device = "pdf", limitsize = FALSE) # <--  output_width
   ggsave(png_file, plot = sankey_plot, width = output_width, height = plot_height, dpi = 300, device = "png", bg = "white", limitsize = FALSE) # <--  output_width
   
-  message("已为样本 '", sample_name, "' 生成桑基图。")
+  message("Sankey plot generated for sample '", sample_name, "'")
 }
 
 for (name in names(sample_list)) {
   message("\n====================================================")
-  message("--- 开始处理样本: ", name, " ---")
+  message("--- : ", name, " ---")
   message("====================================================")
   
   tryCatch({
@@ -3861,7 +3673,7 @@ for (name in names(sample_list)) {
     generate_sankey_plot(data_for_plotting, name, output_dir)
     
   }, error = function(e) {
-    message("!!!!!! 处理样本 '", name, "' 时发生严重错误: ", e$message, " !!!!!!")
+    message("!!!!!! Error processing sample '", name, "': ", e$message, " !!!!!!")
   })
 }
 
@@ -4225,7 +4037,7 @@ sample_sizes <- hcdr3_lengths %>%
   dplyr::count(group) %>%
   dplyr::rename(label = n)
 
-message("HCDR3长度计算完成。")
+message("HCDR3 length calculation complete.")
 print(head(hcdr3_lengths))
 print(sample_sizes)
 
@@ -4234,14 +4046,14 @@ stat_test_results <- compare_means(
   data = hcdr3_lengths,
   method = "wilcox.test"
 )
-message("统计检验结果:")
+message("Statistical test results:")
 print(stat_test_results)
 significant_comparisons <- stat_test_results %>% filter(p.adj < 0.05)
-message("\n显著的组间差异 (p.adj < 0.05):")
+message("\nSignificant group differences (p.adj < 0.05):")
 if (nrow(significant_comparisons) > 0) {
   print(significant_comparisons)
 } else {
-  message("在 p.adj < 0.05 的水平上，未发现显著的组间差异。")
+  message("No significant group differences found at p.adj < 0.05.")
 }
 
 my_comparisons <- list( c("Naive", "Flu_H1"), c("Naive", "Flu_H5"), c("Flu_H1", "Flu_H5") )
@@ -4315,31 +4127,31 @@ sample_sizes <- hcdr3_lengths %>%
   dplyr::count(group) %>%
   dplyr::rename(label = n)
 
-message("HCDR3长度计算完成。")
+message("HCDR3 length calculation complete.")
 
 # ---  2.5:  ---
 message("\n----------------------------------------------------")
-message("--- 执行5个样本间的HCDR3长度显著性检验 ---")
+message("--- Performing HCDR3 length significance test across 5 samples ---")
 message("----------------------------------------------------")
 stat_test_results <- compare_means(
   formula = hcdr3_length ~ group,
   data = hcdr3_lengths,
   method = "wilcox.test"
 )
-message("统计检验结果:")
+message("Statistical test results:")
 print(stat_test_results)
 significant_comparisons <- stat_test_results %>% filter(p.adj < 0.05)
-message("\n显著的组间差异 (p.adj < 0.05):")
+message("\nSignificant group differences (p.adj < 0.05):")
 if (nrow(significant_comparisons) > 0) {
   print(significant_comparisons)
 } else {
-  message("在 p.adj < 0.05 的水平上，未发现显著的组间差异。")
+  message("No significant group differences found at p.adj < 0.05.")
 }
 message("----------------------------------------------------\n")
 
 # ---  3:  ggplot2  ggpubr  ---
 
-message("开始绘制小提琴图...")
+message("Starting violin plot...")
 
 my_comparisons <- list( 
   c("Naive_Mouse1", "Naive_Mouse2"),
@@ -4442,27 +4254,27 @@ sample_sizes <- lcdr3_lengths %>%
   dplyr::count(group) %>%
   dplyr::rename(label = n)
 
-message("HCDR3长度计算完成。")
+message("HCDR3 length calculation complete.")
 print(head(lcdr3_lengths))
 print(sample_sizes)
 
 # ---  2.5: ()  ---
 message("\n----------------------------------------------------")
-message("--- 执行组间HCDR3长度的显著性检验 ---")
+message("--- Performing group-wise HCDR3 length significance test ---")
 message("----------------------------------------------------")
 stat_test_results <- compare_means(
   formula = hcdr3_length ~ group,
   data = lcdr3_lengths,
   method = "wilcox.test"
 )
-message("统计检验结果:")
+message("Statistical test results:")
 print(stat_test_results)
 significant_comparisons <- stat_test_results %>% filter(p.adj < 0.05)
-message("\n显著的组间差异 (p.adj < 0.05):")
+message("\nSignificant group differences (p.adj < 0.05):")
 if (nrow(significant_comparisons) > 0) {
   print(significant_comparisons)
 } else {
-  message("在 p.adj < 0.05 的水平上，未发现显著的组间差异。")
+  message("No significant group differences found at p.adj < 0.05.")
 }
 message("----------------------------------------------------\n")
 
@@ -4549,7 +4361,7 @@ all_data <- bind_rows(list_of_samples, .id = "group")
 # ---  2:  - SHM ---
 # Check if required columns exist
 if (!"MU_FREQ_HEAVY_TOTAL" %in% names(all_data)) {
-  stop("错误：合并后的数据中找不到 'MU_FREQ_HEAVY_TOTAL' 列。请确保您的输入文件是正确的、已计算过SHM的文件。")
+  stop("Error: 'MU_FREQ_HEAVY_TOTAL' column not found in merged data. Please ensure input files are correct and SHM calculated.")
 }
 
 shm_frequencies <- all_data %>%
@@ -4633,11 +4445,11 @@ list_of_samples <- list(
 # bind_rows  'group'
 all_data <- bind_rows(list_of_samples, .id = "group")
 
-message("所有5个样本的数据已成功合并。")
+message("5")
 
 # ---  3:  - SHM ---
 if (!"MU_FREQ_HEAVY_TOTAL" %in% names(all_data)) {
-  stop("错误：数据中找不到 'MU_FREQ_HEAVY_TOTAL' 列。")
+  stop("Error: 'MU_FREQ_HEAVY_TOTAL' column not found in data.")
 }
 
 # X
@@ -4652,10 +4464,10 @@ shm_frequencies <- all_data %>%
   mutate(shm_freq_percent = shm_freq * 100) %>%
   mutate(group = factor(group, levels = group_levels))
 
-message("SHM频率数据处理完成。")
+message("SHM frequency data processing complete.")
 
 # ---  4: ()  ggplot2  ggpubr 5 ---
-message("开始绘制小提琴图...")
+message("Starting violin plot...")
 
 my_comparisons <- list( 
   c("Naive_Mouse1", "Flu_H1_Mouse1"), 
@@ -4723,7 +4535,7 @@ all_data <- bind_rows(list_of_samples, .id = "group")
 
 # ---  2:  - SHM ---
 if (!"MU_FREQ_LIGHT_TOTAL" %in% names(all_data)) {
-  stop("错误：数据中找不到 'MU_FREQ_LIGHT_TOTAL' 列。")
+  stop("Error: 'MU_FREQ_LIGHT_TOTAL' column not found in data.")
 }
 
 # 2.1 () 
@@ -4736,10 +4548,10 @@ shm_frequencies <- all_data %>%
   mutate(shm_freq_percent = shm_freq * 100) %>%
   mutate(group = factor(group, levels = group_levels))
 
-message("SHM频率数据处理完成。")
+message("SHM frequency data processing complete.")
 
 # ---  3: ()  ggplot2  ggpubr 3 ---
-message("开始绘制小提琴图...")
+message("Starting violin plot...")
 
 # 3.1 () 
 my_comparisons <- list( 
@@ -4802,11 +4614,11 @@ list_of_samples <- list(
 # bind_rows  'group'
 all_data <- bind_rows(list_of_samples, .id = "group")
 
-message("所有5个样本的数据已成功合并。")
+message("5")
 
 # ---  3:  - SHM ---
 if (!"MU_FREQ_LIGHT_TOTAL" %in% names(all_data)) {
-  stop("错误：数据中找不到 'MU_FREQ_LIGHT_TOTAL' 列。")
+  stop("Error: 'MU_FREQ_LIGHT_TOTAL' column not found in data.")
 }
 
 # X
@@ -4821,10 +4633,10 @@ shm_frequencies <- all_data %>%
   mutate(shm_freq_percent = shm_freq * 100) %>%
   mutate(group = factor(group, levels = group_levels))
 
-message("SHM频率数据处理完成。")
+message("SHM frequency data processing complete.")
 
 # ---  4: ()  ggplot2  ggpubr 5 ---
-message("开始绘制小提琴图...")
+message("Starting violin plot...")
 
 my_comparisons <- list( 
   c("Naive_Mouse1", "Flu_H1_Mouse1"), 
@@ -5639,7 +5451,7 @@ lineage_plot <- function(
 extract_phylo_col <- function(airr_tbl) {
   if (is.null(airr_tbl) || nrow(airr_tbl) == 0) return(tibble())
   if (!"trees" %in% names(airr_tbl))
-    stop("这个 airrTrees 没有 `trees` 列，请用 str(trees_*) 查看真实列名。")
+    stop("This airrTrees object has no 'trees' column, please use str(trees_*) to check actual column names.")
   tibble(
     clone_id = airr_tbl$clone_id,
     tree     = purrr::map(airr_tbl$trees, function(z){
@@ -5673,7 +5485,7 @@ make_group_pdf <- function(df_group, grp,
                            branch_transform = c("none","sqrt","log1p")) {
   
   sub <- df_group %>% filter(group == grp) %>% arrange(desc(n))
-  if (nrow(sub) == 0) { message("组 ", grp, " 没有树"); return(invisible(NULL)) }
+  if (nrow(sub) == 0) { message(" ", grp, " has no trees"); return(invisible(NULL)) }
   
   outfile <- file.path(outdir, sprintf("%s_sorted_by_size.pdf", grp))
   pdf(outfile, width = 7.5, height = 10, onefile = TRUE)
@@ -5696,7 +5508,7 @@ make_group_pdf <- function(df_group, grp,
     )
     print(p)
   }
-  message("✅ 写出：", outfile)
+  message("✅ Writing: ", outfile)
 }
 
 # #  0.7  branch_scale=0.7
@@ -5811,9 +5623,9 @@ flu_h1_clones <- db_igh_fix %>% filter(specificity == "flu_H1") %>% distinct(cdr
 flu_h5_clones <- db_igh_fix %>% filter(specificity == "flu_H5") %>% distinct(cdr3_aa) %>% pull(cdr3_aa)
 
 # 2)  CDR3 
-cat("Naive 组的克隆型数:",  length(naive_clones),  "\n")
-cat("Flu_H1 组的克隆型数:", length(flu_h1_clones), "\n")
-cat("Flu_H5 组的克隆型数:", length(flu_h5_clones), "\n")
+cat("Naive :",  length(naive_clones),  "\n")
+cat("Flu_H1 group clone count:", length(flu_h1_clones), "\n")
+cat("Flu_H5 group clone count:", length(flu_h5_clones), "\n")
 
 # 3)  Venn
 venn_list <- list(Naive = naive_clones, Flu_H1 = flu_h1_clones, Flu_H5 = flu_h5_clones)
