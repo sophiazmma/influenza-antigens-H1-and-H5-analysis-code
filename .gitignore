@@ -1,0 +1,11 @@
+# Data
+*.csv
+*.tsv
+*.rds
+*.RData
+data/*
+!data/.gitkeep
+results/*
+!results/.gitkeep
+.Rhistory
+.Rproj.user
